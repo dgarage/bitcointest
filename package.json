@@ -1,6 +1,6 @@
 {
   "name": "bctest",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Bitcoin testing framework for node.js",
   "main": "index.js",
   "scripts": {
@@ -12,9 +12,10 @@
   },
   "keywords": [
     "bitcoin",
-    "test",
-    "framework",
-    "rpc"
+    "rpc",
+    "testing",
+    "module",
+    "utility"
   ],
   "author": "Karl-Johan Alm",
   "license": "ISC",
@@ -31,13 +32,6 @@
     "mkdirp": "^0.5.1",
     "remove": "^0.1.5"
   },
-  "keywords": [
-    "bitcoin",
-    "rpc",
-    "testing",
-    "module",
-    "utility"
-  ],
   "devDependencies": {
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0"
