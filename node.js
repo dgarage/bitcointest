@@ -272,7 +272,7 @@ Node.prototype = {
                 // it must belong to the other node then
                 node.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    this.client.importPrivKey(dumpInfo,result, deinfo(cb));
+                    this.client.importPrivKey(dumpInfo.result, '', false, deinfo(cb));
                 });
             }
         });
