@@ -8,9 +8,26 @@ const { Node, BitcoinNet, Transaction } = require('./index');
 const async = require('async');
 
 const expect = chai.expect;
+let net;
+let nodes;
+let node;
+let node2;
 
-const net = new BitcoinNet('../bitcoin-kw/src/', '/tmp/bctest/', 22001, 22002);
-let nodes, node, node2;
+describe('bitcoind', () => {
+  it('can be found', (done) => {
+    const which = require('which');
+    which('bitcoind', (whichErr, whichPath) => {
+      const bitcoinPath =
+        process.env.BITCOIN_PATH ||
+        (!whichErr && whichPath
+          ? whichPath.substr(0, whichPath.length - 8)
+          : '../bitcoin/src/');
+       net = new BitcoinNet(bitcoinPath, '/tmp/bctest/', 22001, 22002);
+       expect(net).to.not.be.null;
+       done();
+    });
+  });
+});
 
 describe('BitcoinNet', () => {
   it('launches 2 nodes', (done) => {
