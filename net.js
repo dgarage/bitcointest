@@ -1,5 +1,7 @@
 const async = require('async');
 const Node = require('./node');
+const assert = require('assert');
+const { Barrier } = require('./utils');
 
 const BitcoinNet = function(path, cfgprefix, portstart, rpcportstart) {
     this.path = path;
@@ -45,19 +47,102 @@ BitcoinNet.prototype = {
         );
     },
     connectNodes(nodes, cb) {
-        const connector = nodes[0];
-        const connectees = nodes.slice(1);
-        connector.connect(connectees, cb);
+        let rem = nodes;
+        let aggregated = [];
+        async.each(
+            nodes,
+            (node, eachCallback) => {
+                assert(node.port === rem[0].port);
+                rem = rem.slice(1);
+                if (rem.length > 0) {
+                    node.connect(rem, (err, results) => {
+                        if (!err) aggregated = aggregated.concat(results);
+                        eachCallback(err);
+                    });
+                } else eachCallback(null);
+            },
+            (err) => cb(err, aggregated)
+        );
     },
-    disconnectGroups(nodegroupA, nodegroupB) {
-        for (const a of nodegroupA) {
-            const connections = a.getConnected(nodegroupB);
-            a.disconnect(connections);
+    /**
+     * Disconnect all nodes in nodegroupA from all the nodes in nodegroupB,
+     * so that the two groups are completely isolated from each other.
+     * Two disconnected groups will not share peer info, such as mem pools,
+     * new blocks, and so on.
+     */
+    disconnectGroups(nodegroupA, nodegroupB, cb) {
+        async.each(
+            nodegroupA,
+            (a, eachCallback) => {
+                const connections = a.getConnected(nodegroupB);
+                a.disconnect(connections, eachCallback);
+            },
+            (err) => {
+                if (err) return cb(err);
+                async.each(
+                    nodegroupB,
+                    (b, eachCallback) => {
+                        const connections = b.getConnected(nodegroupA);
+                        b.disconnect(connections, eachCallback);
+                    },
+                    cb
+                );
+            }
+        );
+    },
+    /**
+     * Partition the list of nodes in nodelist into the given number of 
+     * groups (default 2). Each group will be connected to each other, but
+     * disconnected from all other nodes in the other groups. 
+     * Existing, external connections remain untouched.
+     *
+     * Once finished, cb(err, nodeGroups) is called, where nodeGroups is an
+     * array of arrays, each corresponding to one group.
+     */
+    partition(nodelist, groups, cb) {
+        let iter = 0;
+        let ngm = {};
+        if (groups > nodelist.length) groups = nodelist.length;
+        for (const n of nodelist) {
+            if (!ngm[iter]) ngm[iter] = [];
+            ngm[iter].push(n);
+            n.net_tmp_ng = iter;
+            iter = (iter + 1) % groups;
         }
-        for (const b of nodegroupB) {
-            const connections = b.getConnected(nodegroupA);
-            b.disconnect(connections);
+        const nodeGroups = Object.values(ngm);
+
+        // disconnect everyone from everyone who is not in the same group
+        const b = new Barrier();
+        for (let i = 0; i < nodelist.length; i++) {
+            const n = nodelist[i];
+            for (let j = i + 1; j < nodelist.length; j++) {
+                const m = nodelist[j];
+                if (n.net_tmp_ng !== m.net_tmp_ng) {
+                    if (n.isConnected(m)) n.disconnect(m, b.tick());
+                    if (m.isConnected(n)) m.disconnect(n, b.tick());
+                }
+            }
         }
+        
+        b.wait((err) => {
+            if (err) return cb(err);
+            // connect each group individually
+            b.clear();
+            for (const nodeGroup of nodeGroups) {
+                this.connectNodes(nodeGroup, b.tick());
+            }
+            b.wait((err) => {
+                if (err) return cb(err);
+                cb(err, nodeGroups);
+            });
+        });
+    },
+    /**
+     * Merge the nodes in the node list. This is an alias for 
+     * connectNodes(nodelist, cb)
+     */
+    merge(nodelist, cb) {
+        this.connectNodes(nodelist, cb);
     },
 };
 

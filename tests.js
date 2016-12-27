@@ -9,9 +9,11 @@ const async = require('async');
 
 const expect = chai.expect;
 let net;
-let nodes;
-let node;
-let node2;
+let nodes;  // alias for grp1
+let node;   // alias for nodes[0] == grp1[0]
+let node2;  // alias for nodes[1] == grp1[1]
+let grp1;   // node 0, 1 [net node 2, 3]
+let grp2;   // node 2, 3 [net node 0, 1]
 
 describe('bitcoind', () => {
   it('can be found', (done) => {
@@ -30,21 +32,26 @@ describe('bitcoind', () => {
 });
 
 describe('BitcoinNet', () => {
-  it('launches 2 nodes', (done) => {
+  it('launches nodes', (done) => {
     net.launchBatch(2, (err, n) => {
       expect(err).to.be.null;
       expect(n.length).to.equal(2);
-      nodes = n;
-      [ node, node2 ] = nodes;
-      done();
+      grp2 = n;
+      net.launchBatch(2, (err2, n2) => {
+        expect(err2).to.be.null;
+        expect(n2.length).to.equal(2);
+        grp1 = nodes = n2;
+        [ node, node2 ] = nodes;
+        done();
+      });
     });
   });
 });
 
 describe('bitcoind', function() {
   it('is running', function(done) {
-    this.timeout(10000);
-    net.waitForNodes(nodes, 10000, (err) => {
+    this.timeout(20000);
+    net.waitForNodes(nodes, 20000, (err) => {
       expect(err).to.be.null;
       done();
     });
@@ -138,6 +145,89 @@ describe('bctest', function() {
       expect(tx2).to.not.be.null;
       expect(tx1.vin[0].prevout.hash).to.equal(tx2.vin[0].prevout.hash);
       expect(tx1.vin[0].prevout.n).to.equal(tx2.vin[0].prevout.n);
+      done();
+    });
+  });
+
+  it('can connect groups of nodes', (done) => {
+    const everyone = net.nodes;
+    expect(everyone.length).to.equal(4);
+    net.connectNodes(everyone, (err) => {
+      expect(err).to.be.null;
+      for (let i = 0; i < everyone.length; i++) {
+        for (let j = i + 1; j < everyone.length; j++) {
+          expect(everyone[i].isConnected(everyone[j], true)).to.be.true;
+        }
+      }
+      done();
+    });
+  });
+  
+  it('can disconnect groups correctly', function(done) {
+    expect(grp1.length).to.equal(2);
+    expect(grp2.length).to.equal(2);
+    net.disconnectGroups(grp1, grp2, (err) => {
+      for (let i = 0; i < grp1.length; i++) {
+        for (let j = i + 1; j < grp1.length; j++) {
+          expect(grp1[i].isConnected(grp1[j], true)).to.be.true;
+        }
+      }
+      for (let i = 0; i < grp2.length; i++) {
+        for (let j = i + 1; j < grp2.length; j++) {
+          expect(grp2[i].isConnected(grp2[j], true)).to.be.true;
+        }
+      }
+      for (let i = 0; i < grp1.length; i++) {
+        for (let j = 0; j < grp2.length; j++) {
+          expect(grp1[i].isConnected(grp2[j], true)).to.not.be.true;
+        }
+      }
+      done();
+    });
+  });
+  
+  it('can create partitions from arbitrary node lists', function(done) {
+    const all = net.nodes;
+    expect(all.length).to.equal(4);
+    net.partition(all, 3, (err, nodeGroups) => {
+      expect(err).to.be.null;
+      expect(nodeGroups.length).to.equal(3); // we wanted 3 groups, we should get 3
+      expect(nodeGroups[0].length + nodeGroups[1].length + nodeGroups[2].length).to.equal(all.length); // all nodes should be included
+      for (let grpIter = 0; grpIter < nodeGroups.length; grpIter++) {
+        const grp1 = nodeGroups[grpIter];
+        // connections within each group should exist
+        for (let i = 0; i < grp1.length; i++) {
+          for (let j = i + 1; j < grp1.length; j++) {
+            expect(grp1[i].isConnected(grp1[j], true)).to.be.true;
+          }
+        }
+        // connections between each group should not exist
+        for (let grp2Iter = grpIter + 1; grp2Iter < nodeGroups; grp2Iter++) {
+          const grp2 = nodeGroups[grp2Iter];
+          for (let i = 0; i < grp1.length; j++) {
+            for (let j = 0; j < grp2.length; j++) {
+              expect(grp1[i].isConnected(grp2[j], true)).to.be.false;
+            }
+          }
+        }
+      }
+      done();
+    });
+  });
+  
+  const connectionCount = (nodes) => (nodes * (nodes - 1)) / 2;
+  
+  it('can merge arbitrary node lists', function(done) {
+    const all = net.nodes;
+    expect(all.length).to.equal(4);
+    net.merge(all, (err, results) => {
+      expect(err).to.be.null;
+      expect(results.length).to.equal(connectionCount(all.length));
+      for (let i = 0; i < all.length; i++) {
+        for (let j = i + 1; j < all.length; j++) {
+          expect(all[i].isConnected(all[j], true)).to.be.true;
+        }
+      }
       done();
     });
   });

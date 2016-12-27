@@ -6,11 +6,7 @@ const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 
-Array.prototype.removeOneByValue = (v) => {
-    for (let i = array.length - 1; i >= 0; i--)
-        if (this[i] === v)
-            return this.splice(i, 1);
-};
+const deinfo = (cb) => (err, info) => cb(err, err ? null : info.result);
 
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
     this.connections = [];
@@ -131,10 +127,7 @@ Node.prototype = {
         );
     },
     getBalance(cb) {
-        this.client.getBalance((err, info) => {
-            if (err) return cb(err);
-            cb(err, info.result);
-        });
+        this.client.getBalance(deinfo(cb));
     },
     waitForBalanceChange(oldBalance, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 2000; }
@@ -164,6 +157,14 @@ Node.prototype = {
         );
     },
     /**
+     * Determine if we are connected to the given node.
+     * Returns true if we are, false if not.
+     */
+    isConnected(node, bidirectionalCheck = false) {
+        return this.connections.indexOf(`${node.host}:${node.port}`) !== -1 ||
+               (bidirectionalCheck && node.connections.indexOf(`${this.host}:${this.port}`) !== -1);
+    },
+    /**
      * Determine if we are connected to the given set of nodes. 
      * An array listing the connected nodes is returned.
      */
@@ -179,7 +180,7 @@ Node.prototype = {
         if (Array.isArray(node)) return this.apply(node, 'connect', cb);
         const noderef = `${node.host}:${node.port}`;
         if (this.connections.indexOf(noderef) !== -1) {
-            return cb('already connected');
+            return cb(null);
         }
         this.connections.push(noderef);
         this.client.addNode(noderef, 'onetry', (err, info) => {
@@ -190,28 +191,56 @@ Node.prototype = {
         if (Array.isArray(node)) return this.apply(node, 'disconnect', cb);
         const noderef = `${node.host}:${node.port}`;
         if (this.connections.indexOf(noderef) === -1) {
-            return cb('not connected');
+            return cb(null);
         }
         this.connections.removeOneByValue(noderef);
-        this.client.disconnectNode(noderef, cb);
+        this.client.disconnectNode(noderef, deinfo(cb));
     },
     generateBlocks(count, cb) {
-        this.client.generate(count, cb);
+        this.client.generate(count, deinfo(cb));
+    },
+    getNewAddress(cb) {
+        this.client.getNewAddress(deinfo(cb));
     },
     sendToNode(node, btc, cb) {
         node.client.getNewAddress((err, info) => {
             if (err) return cb(err);
-            return this.sendToAddress(info.result, btc, cb);
-        });
-    },
-    getNewAddress(cb) {
-        this.client.getNewAddress((err, info) => {
-            if (err) return cb(err);
-            cb(null, info.result);
+            return this.sendToAddress(info.result, btc, deinfo(cb));
         });
     },
     sendToAddress(addr, btc, cb) {
-        this.client.sendToAddress(addr, btc, cb);
+        this.client.sendToAddress(addr, btc, deinfo(cb));
+    },
+    /**
+     * Wait for a given transaction with ID txid to appear in the mem pool.
+     * The callback is called with (err, result), where result is 
+     *      false       if the transaction could not be found,
+     *      'mempool'   if the transaction was found in the mem pool
+     */
+    waitForTransaction(txid, timeout, cb) {
+        if (!cb) { cb = timeout; timeout = 2000; }
+        let found = false;
+        let broken = false;
+        const expiry = new Date().getTime() + timeout;
+        async.whilst(
+            () => !found && !broken && expiry > new Date().getTime(),
+            (whilstCallback) => {
+                this.client.getRawMemPool((err, info) => {
+                    if (err) {
+                        broken = true;
+                        return whilstCallback(err);
+                    }
+                    if (info.result.indexOf(txid) !== -1) {
+                        found = 'mempool';
+                        return whilstCallback(null);
+                    }
+                    setTimeout(whilstCallback, 200);
+                });
+            },
+            (err) => {
+                cb(err, found);
+            }
+        );
     },
     getScriptPubKey(addr, cb) {
         if (Array.isArray(addr)) return this.apply(addr, 'getScriptPubKey', cb);
@@ -237,22 +266,19 @@ Node.prototype = {
                 // we give the other node our private key
                 this.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    node.client.importPrivKey(dumpInfo.result, cb);
+                    node.client.importPrivKey(dumpInfo.result, deinfo(cb));
                 });
             } else {
                 // it must belong to the other node then
                 node.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    this.client.importPrivKey(dumpInfo,result, cb);
+                    this.client.importPrivKey(dumpInfo,result, deinfo(cb));
                 });
             }
         });
     },
     createRawTransaction(recipientDict, utxoDict, cb) {
-        this.client.createRawTransaction(utxoDict, recipientDict, (err, info) => {
-            if (err) return cb(err);
-            cb(err, info.result);
-        });
+        this.client.createRawTransaction(utxoDict, recipientDict, deinfo(cb));
     },
     fundTransaction(recipientDict, cb) {
         this.client.createRawTransaction([], recipientDict, (err, info) => {
