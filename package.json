@@ -1,6 +1,6 @@
 {
   "name": "bctest",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Bitcoin testing framework for node.js",
   "main": "index.js",
   "scripts": {
