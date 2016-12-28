@@ -59,6 +59,9 @@ Node.prototype = {
         assert(this.bitcoindproc);
         this.bitcoindproc.kill();
     },
+    stringid() {
+        return `${this.host}:${this.port}`;
+    },
     /**
      * Wait for this node to finish starting up so it can take commands via
      * the RPC interface.

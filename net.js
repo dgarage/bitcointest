@@ -99,15 +99,33 @@ BitcoinNet.prototype = {
      * Once finished, cb(err, nodeGroups) is called, where nodeGroups is an
      * array of arrays, each corresponding to one group.
      */
-    partition(nodelist, groups, cb) {
-        let iter = 0;
+    partition(nodelist, groups, designations, cb) {
+        if (!cb) { cb = designations; designations = null; }
+        const skip = {};
         let ngm = {};
+        let iter = 0;
         if (groups > nodelist.length) groups = nodelist.length;
-        for (const n of nodelist) {
-            if (!ngm[iter]) ngm[iter] = [];
-            ngm[iter].push(n);
+        const nodesPerPartition = Math.ceil(nodelist.length / groups);
+        if (designations) {
+            // {grpidx: [n, n, ...], ...}
+            for (const grpidx of Object.keys(designations)) {
+                ngm[grpidx] = designations[grpidx];
+                for (const n of designations[grpidx]) {
+                    skip[n.stringid()] = 1;
+                    n.net_tmp_ng = grpidx;
+                }
+            }
+        }
+        let p = ngm[iter] = ngm[iter] || [];
+        for (let i = 0; i < nodelist.length; i++) {
+            const n = nodelist[i];
+            if (skip[n.stringid()]) continue;
+            p.push(n);
             n.net_tmp_ng = iter;
-            iter = (iter + 1) % groups;
+            if (p.length >= nodesPerPartition) {
+                iter++;
+                p = ngm[iter] = ngm[iter] || [];
+            }
         }
         const nodeGroups = Object.values(ngm);
 
