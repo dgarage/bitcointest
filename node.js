@@ -265,20 +265,21 @@ Node.prototype = {
         if (spk.substr(46, 4) !== '88ac') return cb('OP_EQUALVERIFY OP_CHECKSIG not found');
         cb(null);
     },
-    shareAddressWithNode(node, addr, cb) {
+    shareAddressWithNode(node, addr, rescan, cb) {
+        if (!cb) { cb = rescan; rescan = false; }
         this.client.validateAddress(addr, (err, info) => {
             if (err) return cb(err);
             if (info.ismine) {
                 // we give the other node our private key
                 this.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    node.client.importPrivKey(dumpInfo.result, deinfo(cb));
+                    node.client.importPrivKey(dumpInfo.result, '', rescan, deinfo(cb));
                 });
             } else {
                 // it must belong to the other node then
                 node.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    this.client.importPrivKey(dumpInfo.result, '', false, deinfo(cb));
+                    this.client.importPrivKey(dumpInfo.result, '', rescan, deinfo(cb));
                 });
             }
         });
