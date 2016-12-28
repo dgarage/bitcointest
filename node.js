@@ -199,6 +199,9 @@ Node.prototype = {
         this.connections.removeOneByValue(noderef);
         this.client.disconnectNode(noderef, deinfo(cb));
     },
+    getGenesisBlockHash(cb) {
+        this.client.getBlockHash(0, deinfo(cb));
+    },
     generateBlocks(count, cb) {
         this.client.generate(count, deinfo(cb));
     },

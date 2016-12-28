@@ -35,7 +35,7 @@ BitcoinNet.prototype = {
         }
         async.eachSeries(batch,
             (node, asyncCallback) => node.start(asyncCallback),
-            (err) => cb(err, batch)
+            (err) => cb ? cb(err, batch) : null
         );
     },
     waitForNodes(nodes, timeout, cb) {
@@ -61,7 +61,7 @@ BitcoinNet.prototype = {
                     });
                 } else eachCallback(null);
             },
-            (err) => cb(err, aggregated)
+            (err) => cb ? cb(err, aggregated) : null
         );
     },
     /**
@@ -153,8 +153,8 @@ BitcoinNet.prototype = {
                 this.connectNodes(nodeGroup, b.tick());
             }
             b.wait((err) => {
-                if (err) return cb(err);
-                cb(err, nodeGroups);
+                if (err) return cb ? cb(err) : null;
+                if (cb) cb(err, nodeGroups);
             });
         });
     },
