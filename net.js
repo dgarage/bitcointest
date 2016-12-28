@@ -104,8 +104,9 @@ BitcoinNet.prototype = {
         const skip = {};
         let ngm = {};
         let iter = 0;
+        let space = 0;
         if (groups > nodelist.length) groups = nodelist.length;
-        const nodesPerPartition = Math.ceil(nodelist.length / groups);
+        const nodesPerPartition = nodelist.length / groups;
         if (designations) {
             // {grpidx: [n, n, ...], ...}
             for (const grpidx of Object.keys(designations)) {
@@ -118,14 +119,16 @@ BitcoinNet.prototype = {
         }
         let p = ngm[iter] = ngm[iter] || [];
         for (let i = 0; i < nodelist.length; i++) {
+            if (space >= nodesPerPartition) {
+                iter++;
+                p = ngm[iter] = ngm[iter] || [];
+                space += p.length - nodesPerPartition;
+            }
             const n = nodelist[i];
             if (skip[n.stringid()]) continue;
             p.push(n);
             n.net_tmp_ng = iter;
-            if (p.length >= nodesPerPartition) {
-                iter++;
-                p = ngm[iter] = ngm[iter] || [];
-            }
+            space += 1;
         }
         const nodeGroups = Object.values(ngm);
 

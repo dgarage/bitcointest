@@ -215,6 +215,73 @@ describe('bctest', function() {
     });
   });
   
+  it('does not make an empty partition for evenly spaced node lists', (done) => {
+    const all = net.nodes;
+    expect(all.length).to.equal(4);
+    net.partition(all, 2, (err, nodeGroups) => {
+      expect(err).to.be.null;
+      expect(nodeGroups.length).to.equal(2);
+      expect(nodeGroups[0].length + nodeGroups[1].length).to.equal(all.length);
+      done();
+    });
+  });
+  
+  it('handles partitions with designations', (done) => {
+    const all = net.nodes;
+    expect(all.length).to.equal(4);
+    // we want all[3] to go into group 0
+    const designations = {
+      0: [all[3]],
+    };
+    net.partition(all, 2, designations, (err, nodeGroups) => {
+      expect(err).to.be.null;
+      expect(nodeGroups.length).to.equal(2);
+      expect(nodeGroups[0].length + nodeGroups[1].length).to.equal(all.length);
+      expect(nodeGroups[0][0].stringid()).to.equal(all[3].stringid());
+      const seen = {};
+      // one node in exactly one group
+      for (const g of nodeGroups) {
+        for (const n of g) {
+          expect(seen[n.stringid()]).to.not.exist;
+          seen[n.stringid()] = 1;
+        }
+      }
+      // all nodes in a group
+      for (const n of all) {
+        expect(seen[n.stringid()]).to.exist;
+      }
+      done();
+    });
+  });
+  
+  it('handles uneven partitions with designations', (done) => {
+    const all = net.nodes;
+    expect(all.length).to.equal(4);
+    // we want all[3] to go into group 0
+    const designations = {
+      0: [all[3]],
+    };
+    net.partition(all, 3, designations, (err, nodeGroups) => {
+      expect(err).to.be.null;
+      expect(nodeGroups.length).to.equal(3);
+      expect(nodeGroups[0].length + nodeGroups[1].length + nodeGroups[2].length).to.equal(all.length);
+      expect(nodeGroups[0][0].stringid()).to.equal(all[3].stringid());
+      const seen = {};
+      // one node in exactly one group
+      for (const g of nodeGroups) {
+        for (const n of g) {
+          expect(seen[n.stringid()]).to.not.exist;
+          seen[n.stringid()] = 1;
+        }
+      }
+      // all nodes in a group
+      for (const n of all) {
+        expect(seen[n.stringid()]).to.exist;
+      }
+      done();
+    });
+  });
+  
   const connectionCount = (nodes) => (nodes * (nodes - 1)) / 2;
   
   it('can merge arbitrary node lists', function(done) {
