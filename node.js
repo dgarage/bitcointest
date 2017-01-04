@@ -364,17 +364,17 @@ Node.prototype = {
         if (!cb) { cb = rescan; rescan = false; }
         this.client.validateAddress(addr, (err, info) => {
             if (err) return cb(err);
-            if (info.ismine) {
+            if (info.result.ismine) {
                 // we give the other node our private key
                 this.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    node.client.importPrivKey(dumpInfo.result, '', rescan, (err, info) => cb(err, err ? null : info.result));
+                    node.client.importPrivKey(dumpInfo.result, '', rescan, (importErr, importInfo) => cb(importErr, importErr ? null : importInfo.result));
                 });
             } else {
                 // it must belong to the other node then
                 node.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    this.client.importPrivKey(dumpInfo.result, '', rescan, (err, info) => cb(err, err ? null : info.result));
+                    this.client.importPrivKey(dumpInfo.result, '', rescan, (importErr, importInfo) => cb(importErr, importErr ? null : importInfo.result));
                 });
             }
         });

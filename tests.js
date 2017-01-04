@@ -353,6 +353,26 @@ describe('bctest', function() {
     });
   });
   
+  it('can share an address to another node', function(done) {
+    node.findSpendableOutput(1, (err, utxo) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
+      expect(err).to.be.null;
+      node.shareAddressWithNode(node2, utxo.address, true, (err2) => {
+        if (err2) console.log(`err=2${JSON.stringify(err2)}`);
+        expect(err2).to.be.null;
+        node.getNewAddress((err3, addr) => {
+          if (err3) console.log(`err=3${JSON.stringify(err3)}`);
+          expect(err3).to.be.null;
+          node2.spendUTXO(utxo, addr, 1, (err4) => {
+            if (err4) console.log(`err=4${JSON.stringify(err4)}`);
+            expect(err4).to.be.null;
+            done();
+          });
+        });
+      });
+    });
+  });
+  
   it('shuts down', function(done) {
     net.shutdown(() => {
       expect(node.running).to.be.false;
