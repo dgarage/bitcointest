@@ -77,25 +77,30 @@ describe('bctest', function() {
   
   it('can generate blocks', (done) => {
     node.generateBlocks(101, (err) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
       expect(err).to.be.null;
       done();
     });
   });
   
   it('can send money between nodes', (done) => {
-    node2.getBalance((err, preBalance) => {
-      expect(err).to.be.null;
-      node.sendToNode(node2, 1, (err2) => {
-        expect(err2).to.be.null;
-        node.generateBlocks(6, (err3) => {
-          expect(err3).to.be.null;
-          node2.waitForBalanceChange(preBalance, (err4, newBalance) => {
-            expect(err4).to.be.null;
-            expect(newBalance).to.equal(preBalance + 1.0);
-            done();
-          });
-        });
-      });
+    let preBalance;
+    async.waterfall([
+      (c) => node2.getBalance(c),
+      (preBalanceIn, c) => {
+        preBalance = preBalanceIn;
+        node.sendToNode(node2, 1, c);
+      },
+      (txid, c) => node.generateBlocks(6, c),
+      (blocks, c) => node2.waitForBalanceChange(preBalance, c),
+      (newBalance, c) => {
+        expect(newBalance).to.equal(preBalance + 1.0);
+        c();
+      }
+    ],
+    (err) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
+      done(err);
     });
   });
   
@@ -113,14 +118,14 @@ describe('bctest', function() {
     });
   });
   
-  it('can fund a transaction to some node', (done) => {
+  it('can create and fund a transaction to some node', (done) => {
     node2.getNewAddress((err, addr) => {
       expect(err).to.be.null;
       node2.getScriptPubKey(addr, (err2, spk) => {
         expect(err2).to.be.null;
         const recips = {};
         recips[addr] = 1;
-        node.fundTransaction(recips, (err3, rawtx) => {
+        node.createAndFundTransaction(recips, (err3, rawtx) => {
           expect(err3).to.be.null;
           const tx = new Transaction(rawtx);
           let vout = null;
@@ -234,6 +239,7 @@ describe('bctest', function() {
       0: [all[3]],
     };
     net.partition(all, 2, designations, (err, nodeGroups) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
       expect(err).to.be.null;
       expect(nodeGroups.length).to.equal(2);
       expect(nodeGroups[0].length + nodeGroups[1].length).to.equal(all.length);
@@ -296,6 +302,54 @@ describe('bctest', function() {
         }
       }
       done();
+    });
+  });
+  
+  it('can send raw transactions', function(done) {
+    this.timeout(20000);
+    let txid;
+    async.waterfall([
+      (c) => node2.getNewAddress(c), 
+      (addr, c) => {
+        const recipientDict = {};
+        recipientDict[addr] = 1;
+        node.createAndFundTransaction(recipientDict, c);
+      },
+      (rawtx, changepos, fee, c) => node.sendRawTransaction(rawtx, true, c),
+      (txidIn, c) => node2.waitForTransaction(txidIn, 15000, c),
+      (result, c) => {
+        expect(result).to.not.be.false;
+        c();
+      },
+    ],
+    (err) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
+      expect(err).to.be.null;
+      done();
+    });
+  });
+  
+  it('can find a spendable output', function(done) {
+    node.findSpendableOutput(1, (err, utxo) => {
+      expect(err).to.be.null;
+      expect(utxo).to.exist;
+      expect(utxo.amount).to.be.above(0.999);
+      done();
+    });
+  });
+  
+  it('can spend UTXOs', function(done) {
+    this.timeout(5000);
+    node.findSpendableOutput(1, (err, utxo) => {
+      expect(err).to.be.null;
+      node2.getNewAddress((err2, addr) => {
+        expect(err2).to.be.null;
+        node.spendUTXO(utxo, addr, 1, (err3) => {
+          if (err3) console.log(`err=${JSON.stringify(err3)}`);
+          expect(err3).to.be.null;
+          done();
+        });
+      });
     });
   });
   

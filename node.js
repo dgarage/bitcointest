@@ -6,8 +6,6 @@ const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 
-const deinfo = (cb) => (err, info) => cb(err, err ? null : info.result);
-
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
     this.connections = [];
     this.path = path;
@@ -130,7 +128,7 @@ Node.prototype = {
         );
     },
     getBalance(cb) {
-        this.client.getBalance(deinfo(cb));
+        this.client.getBalance((err, info) => cb(err, err ? null : info.result));
     },
     waitForBalanceChange(oldBalance, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 2000; }
@@ -197,25 +195,25 @@ Node.prototype = {
             return cb(null);
         }
         this.connections.removeOneByValue(noderef);
-        this.client.disconnectNode(noderef, deinfo(cb));
+        this.client.disconnectNode(noderef, (err, info) => cb(err, err ? null : info.result));
     },
     getGenesisBlockHash(cb) {
-        this.client.getBlockHash(0, deinfo(cb));
+        this.client.getBlockHash(0, (err, info) => cb(err, err ? null : info.result));
     },
     generateBlocks(count, cb) {
-        this.client.generate(count, deinfo(cb));
+        this.client.generate(count, (err, info) => cb(err, err ? null : info.result));
     },
     getNewAddress(cb) {
-        this.client.getNewAddress(deinfo(cb));
+        this.client.getNewAddress((err, info) => cb(err, err ? null : info.result));
     },
     sendToNode(node, btc, cb) {
         node.client.getNewAddress((err, info) => {
             if (err) return cb(err);
-            return this.sendToAddress(info.result, btc, deinfo(cb));
+            return this.sendToAddress(info.result, btc, (err, info) => cb(err, err ? null : info.result));
         });
     },
     sendToAddress(addr, btc, cb) {
-        this.client.sendToAddress(addr, btc, deinfo(cb));
+        this.client.sendToAddress(addr, btc, (err, info) => cb(err, err ? null : info.result));
     },
     /**
      * Wait for a given transaction with ID txid to appear in the mem pool.
@@ -224,7 +222,7 @@ Node.prototype = {
      *      'mempool'   if the transaction was found in the mem pool
      */
     waitForTransaction(txid, timeout, cb) {
-        if (!cb) { cb = timeout; timeout = 2000; }
+        if (!cb) { cb = timeout; timeout = 10000; }
         let found = false;
         let broken = false;
         const expiry = new Date().getTime() + timeout;
@@ -240,7 +238,13 @@ Node.prototype = {
                         found = 'mempool';
                         return whilstCallback(null);
                     }
-                    setTimeout(whilstCallback, 200);
+                    this.client.getRawTransaction(txid, (err2, info2) => {
+                        if (!err2) {
+                            found = 'getrawtx';
+                            return whilstCallback(null);
+                        }
+                        setTimeout(whilstCallback, 200);
+                    });
                 });
             },
             (err) => {
@@ -265,6 +269,97 @@ Node.prototype = {
         if (spk.substr(46, 4) !== '88ac') return cb('OP_EQUALVERIFY OP_CHECKSIG not found');
         cb(null);
     },
+    /**
+     * Send a raw transaction, optionally signing it before sending.
+     */
+    sendRawTransaction(transaction, signBeforeSend, cb) {
+        if (!cb) { cb = signBeforeSend; signBeforeSend = false; }
+        async.waterfall([
+            (c) => {
+                if (signBeforeSend) {
+                    this.client.signRawTransaction(transaction, c);
+                } else {
+                    c(null, { result: transaction });
+                }
+            },
+            (info, c) => {
+                if (info.result.complete !== true) {
+                    return c('Unable to sign transaction');
+                }
+                this.client.sendRawTransaction(info.result.hex, c);
+            },
+        ], (err, info) => cb(err, err ? null : info.result));
+    },
+    /**
+     * Find an UTXO which contains at least the given amount. 
+     * If no UTXO was found matching the requirement, null is returned.
+     */
+    findSpendableOutput(minimumAmount, cb) {
+        if (!cb) { cb = minimumAmount; minimumAmount = 0.0000001; }
+        this.client.listUnspent((err, info) => {
+            if (err) return cb(err);
+            for (const utxo of info.result) {
+                if (utxo.amount >= minimumAmount) return cb(null, utxo);
+            }
+            cb(null, null);
+        });
+    },
+    /**
+     * Send the given amount from the given UTXO to the given address.
+     * Optionally a UTXO index can be given, which defaults to 0 if left out.
+     * A change output to a new address owned by this node is generated and
+     * added to the transaction.
+     * It is recommended but not required that the utxo parameter is an actual
+     * utxo entry in the form seen by `listunspent`. At minimum, it must then 
+     * contain a txid and a vout, and if it has an amount value it means one
+     * less round-trip to the bitcoin daemon, in determining the change output.
+     */
+    spendUTXO(utxo, toAddress, amount, fromUtxoIndex, cb) {
+        if (!cb) { cb = fromUtxoIndex; fromUtxoIndex = 0; }
+        let utxoAmount = -1;
+        let change;
+        if (utxo.txid) {
+            // this is a listunspent entry
+            fromUtxoIndex = utxo.vout;
+            utxoAmount = utxo.amount;
+            utxo = utxo.txid;
+        }
+        const recipientDict = {};
+        const utxoDict = [{
+            txid: utxo,
+            vout: fromUtxoIndex,
+        }];
+        recipientDict[toAddress] = amount;
+        if (utxoAmount > 0) {
+            // we do not have to addChangeOutputToTransaction
+            change = utxoAmount - amount - 0.0003;
+        }
+        async.waterfall([
+            (c) => async.waterfall([
+                (cc) => {
+                    if (utxoAmount > 0) {
+                        if (change > 0) {
+                            return this.getNewAddress((err, addr) => {
+                                recipientDict[addr] = change;
+                                cc();
+                            });
+                        }
+                    }
+                    cc();
+                },
+                (cc) => this.createRawTransaction(recipientDict, utxoDict, cc),
+            ], c),
+            (rawtx, c) => utxoAmount > 0 ? c(null, rawtx) : this.addChangeOutputToTransaction(rawtx, c),
+            (rawtx, c) => this.sendRawTransaction(rawtx, true, c),
+        ], cb);
+    },
+    /**
+     * Hand the private key for the given address (presumably owned by us) to
+     * the given node, so that it now owns that address as well.
+     * If rescan is true, the node will scan the block chain for unspent outputs
+     * and add them to its list of unspents, as well as its balance. For a 
+     * big block chain, this can take a long time (minutes).
+     */
     shareAddressWithNode(node, addr, rescan, cb) {
         if (!cb) { cb = rescan; rescan = false; }
         this.client.validateAddress(addr, (err, info) => {
@@ -273,28 +368,102 @@ Node.prototype = {
                 // we give the other node our private key
                 this.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    node.client.importPrivKey(dumpInfo.result, '', rescan, deinfo(cb));
+                    node.client.importPrivKey(dumpInfo.result, '', rescan, (err, info) => cb(err, err ? null : info.result));
                 });
             } else {
                 // it must belong to the other node then
                 node.client.dumpPrivKey(addr, (dumpErr, dumpInfo) => {
                     if (dumpErr) return cb(dumpErr);
-                    this.client.importPrivKey(dumpInfo.result, '', rescan, deinfo(cb));
+                    this.client.importPrivKey(dumpInfo.result, '', rescan, (err, info) => cb(err, err ? null : info.result));
                 });
             }
         });
     },
+    /**
+     * Create a raw transaction sending bitcoins according to the recipient dict,
+     * which is of the form
+     *  { bitcoinaddress: bitcoinvalue, [...] }
+     * The UTXO dict, if provided, is an array of outpoints, in the format
+     *  [
+     *      {
+     *          txid: <transaction ID>,
+     *          vout: <the output number>,
+     *      },
+     *  ]
+     */
     createRawTransaction(recipientDict, utxoDict, cb) {
-        this.client.createRawTransaction(utxoDict, recipientDict, deinfo(cb));
+        this.client.createRawTransaction(utxoDict, recipientDict, (err, info) => cb(err, err ? null : info.result));
     },
-    fundTransaction(recipientDict, cb) {
+    createAndFundTransaction(recipientDict, cb) {
         this.client.createRawTransaction([], recipientDict, (err, info) => {
             if (err) return cb(err);
             this.client.fundRawTransaction(info.result, (fundErr, fundInfo) => {
                 if (fundErr) return cb(fundErr);
-                cb(fundErr, fundInfo.result.hex, fundInfo.result.changepos, fundInfo.result.fee);
+                const { hex, changepos, fee } = fundInfo.result;
+                cb(fundErr, hex, changepos, fee);
             });
         })
+    },
+    /**
+     * Calculates the total input value and generates a change UTXO to the 
+     * node's own address (or optionally to a specific changeAddress).
+     * A flat rate fee of 150 satoshis per byte (approxpimately) is deducted
+     * from the final value.
+     */
+    addChangeOutputToTransaction(transaction, changeAddress, cb) {
+        if (!cb) { cb = changeAddress; changeAddress = null; }
+        // transaction may be a hex string of a raw transaction, or it may be
+        // a Transaction object
+        const txob = transaction.decode ? transaction : new Transaction(transaction);
+        // we need to gather the total input value from each of the vins
+        let totalValue = 0;
+        let totalSpent = 0;
+        let changeScriptPubKey;
+        const txbytes = (txob.encode().length / 2) + 20; // add some for the change vout; the encode is a hex string, hence halved
+        for (const utxo of txob.vout) {
+            totalSpent += utxo.value;
+        }
+        async.waterfall([
+            (c) => {
+                if (changeAddress) return c();
+                this.client.getNewAddress((err, info) => {
+                    if (err) return c(err);
+                    changeAddress = info.result;
+                    c();
+                });
+            },
+            (c) => this.getScriptPubKey(changeAddress, c),
+            (spk, c) => {
+                changeScriptPubKey = spk;
+                async.eachSeries(
+                    txob.vin,
+                    (outpoint, asyncCallback) => {
+                        this.client.getTransaction(outpoint.hash, (err, info) => {
+                            if (err) return asyncCallback(err);
+                            if (!info || !info.result || !info.hex) return asyncCallback('client.getTransaction did not return a hex value');
+                            const prevtx = new Transaction(info.result.hex);
+                            if (prevtx.vout.length <= outpoint.n) return asyncCallback(`prevout only has outpoints [0..${prevtx.vout.length-1}]; ${outpoint.n} is out of bounds`);
+                            const prevutxo = prevtx.vout[outpoint.n];
+                            totalValue += prevutxo.value;
+                            asyncCallback();
+                        });
+                    },
+                    c
+                );
+            }
+        ],
+        (err) => {
+            if (err) return cb(err);
+            // calculate fee as 150 satoshi / byte
+            const fee = 150 * txbytes;
+            let change = (totalValue - totalSpent);
+            change = change < fee ? 0 : change - fee;
+            txob.vout.push({
+                amount: change,
+                scriptPubKey: changeScriptPubKey,
+            });
+            cb(null, transaction.decode ? txob : txob.encode());
+        });
     },
     createDoubleSpendTransaction(address1, address2, amount, cb) {
         if (!cb) { cb = amount; amount = 1; }
@@ -317,7 +486,7 @@ Node.prototype = {
         this.getScriptPubKey([address1, address2], (spkErr, spks) => {
             if (spkErr) return cb(spkErr);
             // 1. create and fund first tx
-            this.fundTransaction(recips1, (errtx1, rawtx1) => {
+            this.createAndFundTransaction(recips1, (errtx1, rawtx1) => {
                 if (errtx1) {
                     console.log(`error funding transaction: ${JSON.stringify(errtx1)}`);
                     return cb(errtx1);
