@@ -5,9 +5,20 @@ const remove = require('remove');
 const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
+const ON_DEATH = require('death');
 
-let verbose = false;
+let verbose = process.env.V === '1';
 const log = (...args) => verbose ? console.log(...args) : null;
+
+let runningNodes = [];
+ON_DEATH((sig, err) => {
+    if (runningNodes.length) log(`Interrupted: shutting down ${runningNodes.length} node(s) ...`);
+    const rn = runningNodes;
+    runningNodes = [];
+    for (const n of rn) {
+        n.stop();
+    }
+});
 
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
     this.connections = [];
@@ -21,6 +32,14 @@ const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 
     this.pass = pass;
     this.prot = prot;
     this.client = new bcrpc({ host, port: rpcport, user, pass, prot });
+};
+
+const embed = (dict, otherDict) => {
+    if (!dict) return null;
+    for (const k of Object.keys(dict)) {
+        otherDict[k] = dict[k];
+    }
+    return otherDict;
 };
 
 Node.setVerbose = (v) => verbose = v;
@@ -50,6 +69,7 @@ Node.prototype = {
         remove(this.cfgpath, () => {
             mkdirp(this.cfgpath, (err) => {
                 if (err) return cb ? cb(err) : null;
+                runningNodes.push(this);
                 this.bitcoindproc = execFile(`${this.path}/bitcoind`, this.bitcoindargs(), (err, sout, serr) => {
                     this.running = false;
                     this.bitcoindproc = null;
@@ -61,6 +81,11 @@ Node.prototype = {
     },
     stop() {
         assert(this.bitcoindproc);
+        for (let i = 0; i < runningNodes.length; i++)
+            if (runningNodes[i].port === this.port && runningNodes[i].host === this.host) {
+                runningNodes.splice(i, 1);
+                break;
+            }
         this.bitcoindproc.kill();
     },
     stringid() {
@@ -309,7 +334,7 @@ Node.prototype = {
         });
     },
     sendToAddress(addr, btc, cb) {
-        this.client.sendToAddress(addr, btc, (err, info) => cb(err, err ? null : info.result));
+        this.client.sendToAddress(addr, btc, (err, info) => cb(embed(err, { addr, btc }), err ? null : info.result));
     },
     /**
      * Wait for a given transaction with ID txid to appear in the mem pool.

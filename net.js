@@ -3,7 +3,7 @@ const Node = require('./node');
 const assert = require('assert');
 const { Barrier } = require('./utils');
 
-let verbose = false;
+let verbose = process.env.V === '1';
 
 const BitcoinNet = function(path, cfgprefix, portstart, rpcportstart) {
     this.path = path;

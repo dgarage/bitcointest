@@ -29,6 +29,7 @@
   "dependencies": {
     "async": "^2.1.4",
     "bcrpc": "^0.0.5",
+    "death": "^1.0.0",
     "mkdirp": "^0.5.1",
     "remove": "^0.1.5",
     "which": "^1.2.12"
