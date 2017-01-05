@@ -6,6 +6,9 @@ const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 
+const verbose = false;
+const log = (...args) => verbose ? console.log(...args) : null;
+
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
     this.connections = [];
     this.connectStamp = {};
@@ -19,6 +22,8 @@ const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 
     this.prot = prot;
     this.client = new bcrpc({ host, port: rpcport, user, pass, prot });
 };
+
+Node.setVerbose = (v) => verbose = v;
 
 Node.prototype = {
     baseargs() {
@@ -97,14 +102,14 @@ Node.prototype = {
                         } else if (err.code && err.code === -10) {
                             // getBlockTemplate returns error code -10 while "Bitcoin is downloading blocks..."
                             if (syncPrint) {
-                                console.log('    ○ bitcoind is syncing blocks ... waiting for completion');
+                                log('    ○ bitcoind is syncing blocks ... waiting for completion');
                                 syncPrint = false;
                             }
                             setTimeout(cb, 1000);
                         } else if (err.code && err.code === -28) {
                             // loading block index
                             if (blockIndexPrint) {
-                                console.log('    ○ bitcoind is loading block index ... waiting for completion');
+                                log('    ○ bitcoind is loading block index ... waiting for completion');
                                 blockIndexPrint = false;
                             }
                             setTimeout(cb, 300);
@@ -171,7 +176,7 @@ Node.prototype = {
         if (!cb) { cb = timeout; timeout = 6000; }
         assert(typeof(cb) == 'function');
         if (!this.isConnected(node, true))
-            console.log('warning: nodes not connected in sync call; they will probably never sync');
+            log('warning: nodes not connected in sync call; they will probably never sync');
         let synced = false;
         let errored = null;
         const expiry = new Date().getTime() + 6000;

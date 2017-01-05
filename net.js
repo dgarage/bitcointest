@@ -3,12 +3,19 @@ const Node = require('./node');
 const assert = require('assert');
 const { Barrier } = require('./utils');
 
+const verbose = false;
+
 const BitcoinNet = function(path, cfgprefix, portstart, rpcportstart) {
     this.path = path;
     this.cfgprefix = cfgprefix;
     this.nextport = portstart;
     this.nextrpcport = rpcportstart;
     this.nodes = [];
+};
+
+BitcoinNet.setVerbose = (v) => {
+    Node.setVerbose(v);
+    verbose = v;
 };
 
 BitcoinNet.prototype = {
