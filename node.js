@@ -130,9 +130,67 @@ Node.prototype = {
     getBalance(cb) {
         this.client.getBalance((err, info) => cb(err, err ? null : info.result));
     },
+    sync(node, timeout, cb) {
+        if (!cb) { cb = timeout; timeout = 6000; }
+        assert(typeof(cb) == 'function');
+        // we first wait for our blockcount to equal theirs
+        let ourHeight = 0;
+        let theirHeight = 1;
+        let synced = false;
+        let errored = null;
+        const expiry = new Date().getTime() + 6000;
+        async.whilst(
+            () => !errored && !synced && expiry > new Date().getTime(),
+            (mainWhilstCallback) => {
+                async.waterfall([
+                    (c) => {
+                        async.whilst(
+                            () => ourHeight !== theirHeight && expiry > new Date().getTime(),
+                            (whilstCallback) => {
+                                this.client.getBlockCount((err, info) => {
+                                    if (err) return c(err);
+                                    ourHeight = info.result;
+                                    node.client.getBlockCount((err2, info2) => {
+                                        if (err2) return c(err2);
+                                        theirHeight = info2.result;
+                                        whilstCallback();
+                                    });
+                                });
+                            },
+                            c
+                        );
+                    },
+                    (c) => {
+                        if (expiry > new Date().getTime()) return cb('timeout waiting for node sync');
+                        // we now check if the hashes match
+                        this.client.getBlockHash(ourHeight, c)
+                    },
+                    (info, c) => {
+                        const ourBlockHash = info.result;
+                        node.client.getBlockHash(theirHeight, (err, info2) => {
+                            if (err) return c(err);
+                            const theirBlockHash = info2.result;
+                            synced = ourBlockHash === theirBlockHash;
+                            if (synced) return c(null);
+                            setTimeout(c, 100);
+                        });
+                    }
+                ],
+                (err) => {
+                    errored = err;
+                    mainWhilstCallback(err);
+                });
+            },
+            (err) => {
+                if (err) return cb(err);
+                if (!synced) return cb('timeout waiting for node sync');
+                cb();
+            }
+        );
+    },
     waitForBalanceChange(oldBalance, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 2000; }
-        assert(cb);
+        assert(typeof(cb) === 'function');
         const expiry = new Date().getTime() + timeout;
         const blk = () => {
             this.getBalance((err, bal) => {
@@ -178,6 +236,7 @@ Node.prototype = {
         return connected;
     },
     connect(node, cb) {
+        assert(typeof(cb) === 'function');
         if (Array.isArray(node)) return this.apply(node, 'connect', cb);
         const noderef = `${node.host}:${node.port}`;
         if (this.connections.indexOf(noderef) !== -1) {
@@ -189,6 +248,7 @@ Node.prototype = {
         });
     },
     disconnect(node, cb) {
+        assert(typeof(cb) === 'function');
         if (Array.isArray(node)) return this.apply(node, 'disconnect', cb);
         const noderef = `${node.host}:${node.port}`;
         if (this.connections.indexOf(noderef) === -1) {
@@ -201,12 +261,15 @@ Node.prototype = {
         this.client.getBlockHash(0, (err, info) => cb(err, err ? null : info.result));
     },
     generateBlocks(count, cb) {
+        assert(typeof(cb) === 'function');
         this.client.generate(count, (err, info) => cb(err, err ? null : info.result));
     },
     getNewAddress(cb) {
+        assert(typeof(cb) === 'function');
         this.client.getNewAddress((err, info) => cb(err, err ? null : info.result));
     },
     sendToNode(node, btc, cb) {
+        assert(typeof(cb) === 'function');
         node.client.getNewAddress((err, info) => {
             if (err) return cb(err);
             return this.sendToAddress(info.result, btc, (err, info) => cb(err, err ? null : info.result));

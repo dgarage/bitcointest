@@ -24,7 +24,7 @@ describe('bitcoind', () => {
         (!whichErr && whichPath
           ? whichPath.substr(0, whichPath.length - 8)
           : '../bitcoin/src/');
-       net = new BitcoinNet(bitcoinPath, '/tmp/bctest/', 22001, 22002);
+       net = new BitcoinNet(bitcoinPath, '/tmp/bitcointest/', 22001, 22002);
        expect(net).to.not.be.null;
        done();
     });
@@ -58,7 +58,7 @@ describe('bitcoind', function() {
   });
 });
 
-describe('bctest', function() {
+describe('bitcointest', function() {
   it('can get balance', (done) => {
     node.getBalance((err, balance) => {
       expect(err).to.be.null;
@@ -370,6 +370,24 @@ describe('bctest', function() {
           });
         });
       });
+    });
+  });
+  
+  it('can sync', function(done) {
+    this.timeout(10000);
+    async.waterfall([
+      (c) => net.partition(all, 2, c),
+      (nodeGroups, c) => nodes[0].generateBlocks(10, c),
+      (blocks, c) => nodes[1].sync(nodes[0], c),
+      (c) => net.merge(all, c),
+      (nodes, c) => net.sync(all, c),
+      (c) => {
+        
+      }
+    ], (err) => {
+      if (err) console.log(`err=${JSON.stringify(err)}`);
+      expect(err).to.be.null;
+      done();
     });
   });
   

@@ -165,6 +165,34 @@ BitcoinNet.prototype = {
     merge(nodelist, cb) {
         this.connectNodes(nodelist, cb);
     },
+    /**
+     * Wait for the nodes in the given nodelist to reach the same state as each
+     * other. The nodes must be connected. This is tested, and an assertion
+     * thrown if it is not the case.
+     */
+    sync(nodelist, timeout, cb) {
+        if (!cb) { cb = timeout; timeout = 10000; }
+        assert(typeof(cb) === 'function');
+        let prev = null;
+        for (const node of nodelist) {
+            if (prev) assert(node.isConnected(prev, true));
+            prev = node;
+        }
+        prev = null;
+        async.eachSeries(
+            nodelist,
+            (node, seriesCallback) => {
+                if (prev) {
+                    node.sync(prev, timeout, seriesCallback);
+                } else {
+                    seriesCallback(null);
+                }
+            },
+            (err) => {
+                cb(err);
+            }
+        )
+    },
 };
 
 module.exports = BitcoinNet;
