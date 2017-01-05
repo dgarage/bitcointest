@@ -8,6 +8,7 @@ const Transaction = require('./transaction');
 
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
     this.connections = [];
+    this.connectStamp = {};
     this.path = path;
     this.cfgpath = cfgpath;
     this.host = host;
@@ -96,14 +97,14 @@ Node.prototype = {
                         } else if (err.code && err.code === -10) {
                             // getBlockTemplate returns error code -10 while "Bitcoin is downloading blocks..."
                             if (syncPrint) {
-                                console.log('bitcoind is syncing blocks ... waiting for completion');
+                                console.log('    ○ bitcoind is syncing blocks ... waiting for completion');
                                 syncPrint = false;
                             }
                             setTimeout(cb, 1000);
                         } else if (err.code && err.code === -28) {
                             // loading block index
                             if (blockIndexPrint) {
-                                console.log('bitcoind is loading block index ... waiting for completion');
+                                console.log('    ○ bitcoind is loading block index ... waiting for completion');
                                 blockIndexPrint = false;
                             }
                             setTimeout(cb, 300);
@@ -130,57 +131,60 @@ Node.prototype = {
     getBalance(cb) {
         this.client.getBalance((err, info) => cb(err, err ? null : info.result));
     },
+    getSyncState(node, timeout, cb) {
+        if (!cb) { cb = timeout; timeout = 6000; }
+        assert(typeof(cb) == 'function');
+        let done = false;
+        let synced = false;
+        let ourHeight;
+        let theirHeight;
+        async.waterfall([
+            (c) => this.client.getBlockCount((err, info) => {
+                if (err) return c(err);
+                ourHeight = info.result;
+                node.client.getBlockCount((err2, info2) => {
+                    if (err2) return c(err2);
+                    theirHeight = info2.result;
+                    done = ourHeight !== theirHeight;
+                    c(done ? 'async' : null);
+                });
+            }),
+            (c) => {
+                // we now check if the hashes match
+                this.client.getBlockHash(ourHeight, c);
+            },
+            (info, c) => {
+                const ourBlockHash = info.result;
+                node.client.getBlockHash(theirHeight, (err, info2) => {
+                    if (err) return c(err);
+                    const theirBlockHash = info2.result;
+                    synced = ourBlockHash === theirBlockHash;
+                    c();
+                });
+            }
+        ],
+        (err) => {
+            cb(err === 'async' ? null : err, synced);
+        });
+    },
     sync(node, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 6000; }
         assert(typeof(cb) == 'function');
-        // we first wait for our blockcount to equal theirs
-        let ourHeight = 0;
-        let theirHeight = 1;
+        if (!this.isConnected(node, true))
+            console.log('warning: nodes not connected in sync call; they will probably never sync');
         let synced = false;
         let errored = null;
         const expiry = new Date().getTime() + 6000;
         async.whilst(
             () => !errored && !synced && expiry > new Date().getTime(),
-            (mainWhilstCallback) => {
-                async.waterfall([
-                    (c) => {
-                        async.whilst(
-                            () => ourHeight !== theirHeight && expiry > new Date().getTime(),
-                            (whilstCallback) => {
-                                this.client.getBlockCount((err, info) => {
-                                    if (err) return c(err);
-                                    ourHeight = info.result;
-                                    node.client.getBlockCount((err2, info2) => {
-                                        if (err2) return c(err2);
-                                        theirHeight = info2.result;
-                                        whilstCallback();
-                                    });
-                                });
-                            },
-                            c
-                        );
-                    },
-                    (c) => {
-                        if (expiry > new Date().getTime()) return cb('timeout waiting for node sync');
-                        // we now check if the hashes match
-                        this.client.getBlockHash(ourHeight, c)
-                    },
-                    (info, c) => {
-                        const ourBlockHash = info.result;
-                        node.client.getBlockHash(theirHeight, (err, info2) => {
-                            if (err) return c(err);
-                            const theirBlockHash = info2.result;
-                            synced = ourBlockHash === theirBlockHash;
-                            if (synced) return c(null);
-                            setTimeout(c, 100);
-                        });
-                    }
-                ],
-                (err) => {
-                    errored = err;
-                    mainWhilstCallback(err);
-                });
-            },
+            (c) => this.getSyncState(node, timeout, (err, state) => {
+                synced = state;
+                errored = !!err;
+                if (!err && !synced)
+                    setTimeout(c, 100);
+                else
+                    c(err);
+            }),
             (err) => {
                 if (err) return cb(err);
                 if (!synced) return cb('timeout waiting for node sync');
@@ -235,6 +239,18 @@ Node.prototype = {
         }
         return connected;
     },
+    prepareConnectionChange(node, cb) {
+        const noderef = `${node.host}:${node.port}`;
+        const myNoderef = `${this.host}:${this.port}`;
+        let now = new Date().getTime();
+        let lastUpdate = 0;
+        for (const s of [this.connectStamp[noderef], node.connectStamp[myNoderef]]) {
+            if (s && s > lastUpdate) lastUpdate = s;
+        }
+        const threshold = lastUpdate + 500; // we allow 1 change in connection state per 500 ms to avoid node confusion
+        const waitTime = threshold - now;
+        if (waitTime > 0) setTimeout(cb, waitTime); else cb();
+    },
     connect(node, cb) {
         assert(typeof(cb) === 'function');
         if (Array.isArray(node)) return this.apply(node, 'connect', cb);
@@ -242,9 +258,16 @@ Node.prototype = {
         if (this.connections.indexOf(noderef) !== -1) {
             return cb(null);
         }
-        this.connections.push(noderef);
-        this.client.addNode(noderef, 'onetry', (err, info) => {
-            cb(err, info);
+        const myNoderef = `${this.host}:${this.port}`;
+        if (node.connections.indexOf(myNoderef) !== -1) {
+            return cb(null);
+        }
+        this.prepareConnectionChange(node, () => {
+            this.connectStamp[noderef] = new Date().getTime();
+            this.connections.push(noderef);
+            this.client.addNode(noderef, 'onetry', (err, info) => {
+                cb(err, err ? null : info.result);
+            });
         });
     },
     disconnect(node, cb) {
@@ -254,8 +277,13 @@ Node.prototype = {
         if (this.connections.indexOf(noderef) === -1) {
             return cb(null);
         }
-        this.connections.removeOneByValue(noderef);
-        this.client.disconnectNode(noderef, (err, info) => cb(err, err ? null : info.result));
+        this.prepareConnectionChange(node, () => {
+            this.connectStamp[noderef] = new Date().getTime();
+            this.connections.removeOneByValue(noderef);
+            this.client.disconnectNode(noderef, (err, info) => {
+                cb(err, err ? null : info.result);
+            });            
+        });
     },
     getGenesisBlockHash(cb) {
         this.client.getBlockHash(0, (err, info) => cb(err, err ? null : info.result));

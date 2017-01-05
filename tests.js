@@ -4,11 +4,12 @@
 /* eslint no-unused-expressions: 0 */
 
 const chai = require('chai');
-const { Node, BitcoinNet, Transaction } = require('./index');
+const { BitcoinGraph, Node, BitcoinNet, Transaction } = require('./index');
 const async = require('async');
 
 const expect = chai.expect;
 let net;
+let graph;
 let nodes;  // alias for grp1
 let node;   // alias for nodes[0] == grp1[0]
 let node2;  // alias for nodes[1] == grp1[1]
@@ -25,6 +26,7 @@ describe('bitcoind', () => {
           ? whichPath.substr(0, whichPath.length - 8)
           : '../bitcoin/src/');
        net = new BitcoinNet(bitcoinPath, '/tmp/bitcointest/', 22001, 22002);
+       graph = new BitcoinGraph(net);
        expect(net).to.not.be.null;
        done();
     });
@@ -231,7 +233,7 @@ describe('bitcointest', function() {
     });
   });
   
-  it('handles partitions with designations', (done) => {
+  it('handles partitions with designations', function(done) {
     const all = net.nodes;
     expect(all.length).to.equal(4);
     // we want all[3] to go into group 0
@@ -260,7 +262,8 @@ describe('bitcointest', function() {
     });
   });
   
-  it('handles uneven partitions with designations', (done) => {
+  it('handles uneven partitions with designations', function(done) {
+    this.timeout(6000);
     const all = net.nodes;
     expect(all.length).to.equal(4);
     // we want all[3] to go into group 0
@@ -375,14 +378,34 @@ describe('bitcointest', function() {
   
   it('can sync', function(done) {
     this.timeout(10000);
+    const all = net.nodes;
     async.waterfall([
-      (c) => net.partition(all, 2, c),
-      (nodeGroups, c) => nodes[0].generateBlocks(10, c),
-      (blocks, c) => nodes[1].sync(nodes[0], c),
       (c) => net.merge(all, c),
-      (nodes, c) => net.sync(all, c),
+      (nodes, c) => net.partition(all, 2, c),
+      (nodeGroups, c) => all[0].generateBlocks(10, c),
+      (blocks, c) => all[1].sync(all[0], c),
+      (c) => net.merge(all, c),
+      (nodes, c) => all[3].generateBlocks(1, c),
+      (blocks, c) => net.sync(all, c),
       (c) => {
-        
+        let prev = null;
+        async.eachSeries(
+          all,
+          (node, escb) => {
+            if (prev) {
+              node.getSyncState(prev, (err, state) => {
+                expect(err).to.be.null;
+                expect(state).to.be.true;
+                prev = node;
+                escb();
+              });
+            } else {
+              prev = node;
+              escb();
+            }
+          },
+          c
+        );
       }
     ], (err) => {
       if (err) console.log(`err=${JSON.stringify(err)}`);

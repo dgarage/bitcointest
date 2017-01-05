@@ -6,7 +6,37 @@ const BitcoinGraph = function(net) {
     this.net = net;
 };
 
+const space = '              ';
+const lpad = (s, len) => {
+    const x = (space + s);
+    return s.length >= len ? s : x.substr(x.length - len);
+};
+
 BitcoinGraph.prototype = {
+    printConnectionMatrix(nodes) {
+        // sort nodes by port
+        const sorted = nodes.sort((a,b) => a.port < b.port);
+        const map = {};
+        let iter = 0;
+        for (const n of sorted) {
+            iter++;
+            map[n.port] = '' + iter;
+        }
+        let s = "    ";
+        for (const n of sorted) s += lpad(map[n.port], 4);
+        console.log(s);
+        for (const a of sorted) {
+            s = lpad(map[a.port], 4);
+            for (const b of sorted) {
+                let z = '--';
+                if (a.port !== b.port) {
+                    z = (a.isConnected(b) ? 'o' : 'x') + (b.isConnected(a) ? 'o' : 'x');
+                }
+                s += lpad(z, 4);
+            }
+            console.log(s);
+        }
+    },
     printBlockChains(grpA, grpB, c) {
         const printUnified = (v) => console.log(`        ${v.substr(0,8)}`);
         const printLeft = (v) => console.log(`${v.substr(0,8)}`);

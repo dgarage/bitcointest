@@ -40,6 +40,7 @@ BitcoinNet.prototype = {
     },
     waitForNodes(nodes, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 10000; }
+        assert(typeof(cb) === 'function');
         async.eachSeries(
             nodes,
             (node, asyncCallback) => node.waitUntilReady(timeout, asyncCallback),
@@ -47,6 +48,7 @@ BitcoinNet.prototype = {
         );
     },
     connectNodes(nodes, cb) {
+        assert(typeof(cb) === 'function');
         let rem = nodes;
         let aggregated = [];
         async.each(
@@ -101,6 +103,7 @@ BitcoinNet.prototype = {
      */
     partition(nodelist, groups, designations, cb) {
         if (!cb) { cb = designations; designations = null; }
+        assert(typeof(cb) === 'function');
         const skip = {};
         let ngm = {};
         let iter = 0;
@@ -163,6 +166,7 @@ BitcoinNet.prototype = {
      * connectNodes(nodelist, cb)
      */
     merge(nodelist, cb) {
+        assert(typeof(cb) === 'function');
         this.connectNodes(nodelist, cb);
     },
     /**
@@ -183,8 +187,12 @@ BitcoinNet.prototype = {
             nodelist,
             (node, seriesCallback) => {
                 if (prev) {
-                    node.sync(prev, timeout, seriesCallback);
+                    node.sync(prev, timeout, (err) => {
+                        prev = node;
+                        seriesCallback(err);
+                    });
                 } else {
+                    prev = node;
                     seriesCallback(null);
                 }
             },
