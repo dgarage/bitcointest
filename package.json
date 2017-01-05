@@ -1,5 +1,5 @@
 {
-  "name": "bctest",
+  "name": "bitcointest",
   "version": "0.1.3",
   "description": "Bitcoin testing framework for node.js",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgarage/bctest.git"
+    "url": "git+https://github.com/dgarage/bitcointest.git"
   },
   "keywords": [
     "bitcoin",
@@ -20,12 +20,12 @@
   "author": "Karl-Johan Alm",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dgarage/bctest/issues"
+    "url": "https://github.com/dgarage/bitcointest/issues"
   },
   "bin": {
-    "bctest": "./index.js"
+    "bitcointest": "./index.js"
   },
-  "homepage": "https://github.com/dgarage/bctest#readme",
+  "homepage": "https://github.com/dgarage/bitcointest#readme",
   "dependencies": {
     "async": "^2.1.4",
     "bcrpc": "^0.0.5",
