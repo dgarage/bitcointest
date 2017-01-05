@@ -6,7 +6,7 @@ const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 
-const verbose = false;
+let verbose = false;
 const log = (...args) => verbose ? console.log(...args) : null;
 
 const Node = function(path, cfgpath, host, port, rpcport, user = 'user', pass = 'password', prot = 'http') {
