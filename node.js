@@ -472,7 +472,7 @@ Node.prototype = {
             ], c),
             (rawtx, c) => utxoAmount > 0 ? c(null, rawtx) : this.addChangeOutputToTransaction(rawtx, c),
             (rawtx, c) => this.sendRawTransaction(rawtx, true, c),
-        ], cb);
+        ], (err, info) => cb(embed(err, { toAddress, amount, utxoAmount, change, fromUtxoIndex }), info));
     },
     /**
      * Hand the private key for the given address (presumably owned by us) to
