@@ -16,7 +16,9 @@ const lpad = (s, len) => {
 BitcoinGraph.prototype = {
     printConnectionMatrix(nodes) {
         // sort nodes by port
-        const sorted = nodes.sort((a,b) => a.port < b.port);
+        let sorted = [];
+        for (const n of nodes) sorted.push(n);
+        sorted.sort((a,b) => a.port < b.port);
         const map = {};
         let iter = 0;
         for (const n of sorted) {
@@ -103,7 +105,7 @@ BitcoinGraph.prototype = {
                                 (whilstCallback) => {
                                     grpA[0].client.getBlockHash(ia, (err, bhInfoA) => {
                                         const a = bhInfoA.result;
-                                        printLeft(a);
+                                        printLeft('' + a);
                                         ia = a === lastA ? 0 : ia + 1;
                                         whilstCallback();
                                     });
@@ -114,7 +116,7 @@ BitcoinGraph.prototype = {
                                         (whilstCallback) => {
                                             grpB[0].client.getBlockHash(ib, (err, bhInfoB) => {
                                                 const b = bhInfoB.result;
-                                                printRight(b);
+                                                printRight('' + b);
                                                 ib = b === lastB ? 0 : ib + 1;
                                                 whilstCallback();
                                             });

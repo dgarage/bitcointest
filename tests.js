@@ -74,7 +74,7 @@ describe('bitcointest', function() {
   
   it('can send money between nodes', (done) => {
     const preBalance = node2.getBalanceS();
-    const txid = node.sendToNodeS(node2, 1);
+    node.sendToNodeS(node2, 1);
     const blocks = node.generateBlocksS(6);
     const newBalance = node2.waitForBalanceChangeS(preBalance);
     expect(newBalance).to.equal(preBalance + 1.0);

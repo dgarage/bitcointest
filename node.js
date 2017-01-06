@@ -13,7 +13,7 @@ const log = (...args) => verbose ? console.log(...args) : null;
 
 let runningNodes = [];
 ON_DEATH((sig, err) => {
-    if (runningNodes.length) log(`Interrupted: shutting down ${runningNodes.length} node(s) ...`);
+    if (runningNodes.length) console.log(`Interrupted: shutting down ${runningNodes.length} node(s) ...`);
     const rn = runningNodes;
     runningNodes = [];
     for (const n of rn) {
@@ -328,7 +328,7 @@ Node.prototype = {
         assert(typeof(cb) === 'function');
         node.client.getNewAddress((err, info) => {
             if (err) return cb(err);
-            return this.sendToAddress(info.result, btc, (err, info) => cb(err, err ? null : info.result));
+            return this.client.sendToAddress(info.result, btc, (err, info) => cb(err, err ? null : info.result));
         });
     },
     sendToAddress(addr, btc, cb) {
