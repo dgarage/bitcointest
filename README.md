@@ -10,7 +10,7 @@ Install the npm module `bitcointest`, and in a node project, do:
 
 ```javascript
 const { BitcoinNet, BitcoinGraph, Node } = require('bitcointest');
-net = new BitcoinNet('../bitcoin-main/src', '/tmp/bitcointest/', 22001, 22002);
+net = new BitcoinNet('/path/to/bitcoin', '/tmp/bitcointest/', 22001, 22002);
 graph = new BitcoinGraph(net);
 
 try {
