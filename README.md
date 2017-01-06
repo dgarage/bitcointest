@@ -183,7 +183,7 @@ graph.printBlockChainsS(n12, n34);
 */
 ```
 
-... we see that a fork has occurred. This fork will survive for as long as the two partitions are separated. Once the network is merged, the fork will perform a reorg, and the longest chain will become the new active one, as seen by the nodes. Final step.
+... we see that a fork has occurred. This fork will survive for as long as the two partitions are separated. Once the network is merged, the net will perform a reorg, and the longest chain will become the new active one, as seen by the nodes. We force the longest chain to be the `n34` one, by generating on `n3`. Final step.
 
 Step 5:
 ```javascript
