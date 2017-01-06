@@ -1,7 +1,7 @@
 const async = require('async');
 const Node = require('./node');
 const assert = require('assert');
-const { Barrier } = require('./utils');
+const { Barrier, DeasyncObject } = require('./utils');
 
 let verbose = process.env.V === '1';
 
@@ -209,5 +209,7 @@ BitcoinNet.prototype = {
         )
     },
 };
+
+DeasyncObject(BitcoinNet);
 
 module.exports = BitcoinNet;

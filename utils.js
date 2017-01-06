@@ -1,3 +1,5 @@
+const deasync = require('deasync');
+
 Array.prototype.removeOneByValue = function(v) {
     for (let i = this.length - 1; i >= 0; i--)
         if (this[i] === v)
@@ -7,6 +9,12 @@ Array.prototype.removeOneByValue = function(v) {
 
 const Barrier = function() {
     this.counter = 0;
+};
+
+const DeasyncObject = (object) => {
+    for (const m of Object.keys(object.prototype)) {
+        object.prototype[`${m}S`] = deasync(object.prototype[m]);
+    }
 };
 
 Barrier.prototype = {
@@ -30,4 +38,5 @@ Barrier.prototype = {
 
 module.exports = {
     Barrier,
+    DeasyncObject,
 };

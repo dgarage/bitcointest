@@ -6,6 +6,7 @@ const mkdirp = require('mkdirp');
 const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 const ON_DEATH = require('death');
+const { DeasyncObject } = require('./utils');
 
 let verbose = process.env.V === '1';
 const log = (...args) => verbose ? console.log(...args) : null;
@@ -109,7 +110,11 @@ Node.prototype = {
         async.whilst(
             () => waitForBitcoind && expiry > new Date().getTime(),
             (cb) => {
+                // TODO: look into why getInfo returns twice sometimes
+                let calledBack = false;
                 this.client.getInfo((err, gbt) => {
+                    if (calledBack) return;
+                    calledBack = true;
                     error = err;
                     if (err) {
                         if (!gbt || (err.code && err.code === -9)) {
@@ -118,44 +123,37 @@ Node.prototype = {
                             if (connFailurePrint) {
                                 if (err.message === 'bitcoin JSON-RPC connection rejected: 401 unauthorized') {
                                     waitForBitcoind = false;
-                                    cb('404 unauthorized');
-                                    return;
+                                    return cb('404 unauthorized');
                                 }
                                 connFailurePrint = false;
                             }
-                            setTimeout(cb, 200);
-                        } else if (err.code && err.code === -10) {
+                            return setTimeout(cb, 200);
+                        } 
+                        if (err.code && err.code === -10) {
                             // getBlockTemplate returns error code -10 while "Bitcoin is downloading blocks..."
                             if (syncPrint) {
                                 log('    ○ bitcoind is syncing blocks ... waiting for completion');
                                 syncPrint = false;
                             }
-                            setTimeout(cb, 1000);
-                        } else if (err.code && err.code === -28) {
+                            return setTimeout(cb, 1000);
+                        } 
+                        if (err.code && err.code === -28) {
                             // loading block index
                             if (blockIndexPrint) {
                                 log('    ○ bitcoind is loading block index ... waiting for completion');
                                 blockIndexPrint = false;
                             }
-                            setTimeout(cb, 300);
-                        } else {
-                            // FATAL: unknown other error
-                            waitForBitcoind = false;
-                            cb(`unknown bitcoind error; make sure node is configured: client=${this.client}, port=${this.port}, rpcport=${this.rpcport}`);
-                        }
-                    } else {
+                            return setTimeout(cb, 300);
+                        } 
+                        // FATAL: unknown other error
                         waitForBitcoind = false;
-                        cb();
-                    }
+                        return cb(`unknown bitcoind error; make sure node is configured: client=${this.client}, port=${this.port}, rpcport=${this.rpcport}`);
+                    } 
+                    waitForBitcoind = false;
+                    return cb();
                 });
             },
-            () => {
-                if (waitForBitcoind) {
-                    // expired
-                    return mcb('timeout');
-                }
-                mcb();
-            }
+            () => mcb(waitForBitcoind ? 'timeout' : null)
         );
     },
     getBalance(cb) {
@@ -344,6 +342,7 @@ Node.prototype = {
      */
     waitForTransaction(txid, timeout, cb) {
         if (!cb) { cb = timeout; timeout = 10000; }
+        assert(typeof(cb) === 'function');
         let found = false;
         let broken = false;
         const expiry = new Date().getTime() + timeout;
@@ -520,8 +519,7 @@ Node.prototype = {
             if (err) return cb(err);
             this.client.fundRawTransaction(info.result, (fundErr, fundInfo) => {
                 if (fundErr) return cb(fundErr);
-                const { hex, changepos, fee } = fundInfo.result;
-                cb(fundErr, hex, changepos, fee);
+                cb(fundErr, fundInfo.result);
             });
         })
     },
@@ -607,12 +605,13 @@ Node.prototype = {
         this.getScriptPubKey([address1, address2], (spkErr, spks) => {
             if (spkErr) return cb(spkErr);
             // 1. create and fund first tx
-            this.createAndFundTransaction(recips1, (errtx1, rawtx1) => {
+            this.createAndFundTransaction(recips1, (errtx1, tx1result) => {
                 if (errtx1) {
                     console.log(`error funding transaction: ${JSON.stringify(errtx1)}`);
                     return cb(errtx1);
                 }
                 // 3. create a copy of the first tx
+                const rawtx1 = tx1result.hex;
                 const tx1 = new Transaction(rawtx1);
                 //    find & replace the address1 scriptPubKey with the address2 one
                 let found = false;
@@ -635,5 +634,7 @@ Node.prototype = {
         });
     },
 };
+
+DeasyncObject(Node);
 
 module.exports = Node;

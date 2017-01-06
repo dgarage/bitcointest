@@ -1,6 +1,7 @@
 const Node = require('./node');
 const async = require('async');
 const BitcoinNet = require('./net');
+const { DeasyncObject } = require('./utils');
 
 const BitcoinGraph = function(net) {
     this.net = net;
@@ -129,5 +130,7 @@ BitcoinGraph.prototype = {
         });
     },
 };
+
+DeasyncObject(BitcoinGraph);
 
 module.exports = BitcoinGraph;
