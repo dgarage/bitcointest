@@ -8,7 +8,7 @@ The tests.js file contains several examples detailing what can be done.
 
 Install the npm module `bitcointest`, and in a node project, do:
 
-```Javascript
+```javascript
 const { BitcoinNet, BitcoinGraph, Node } = require('bitcointest');
 net = new BitcoinNet('../bitcoin-main/src', '/tmp/bitcointest/', 22001, 22002);
 graph = new BitcoinGraph(net);
@@ -29,7 +29,7 @@ Note that starting a node up can take a long time, and you should `waitForNodes`
 
 Note also that in the examples below, the `S`-suffix versions are being used. These are synchronous variants, which have equivalent non-`S` versions which take an additional callback in the form `(err, result)`.
 
-```Javascript
+```javascript
 console.log('launching nodes');
 const nodes = net.launchBatchS(4);
 const [ n1, n2, n3, n4 ] = nodes;
@@ -38,13 +38,13 @@ net.waitForNodesS(nodes, 20000);
 
 You can now do things with the nodes. Each node is an independent Bitcoin regtest node. Our nodes are currently disconnected. Let's connect all of them.
 
-```Javascript
+```javascript
 net.mergeS(nodes);
 ```
 
 Now that we've merged nodes, let's look at the connection matrix.
 
-```Javascript
+```javascript
 console.log('current connection matrix:');
 graph.printConnectionMatrix(nodes);
 /*
@@ -58,14 +58,14 @@ graph.printConnectionMatrix(nodes);
 
 Let's generate some blocks so we have something to spend.
 
-```Javascript
+```javascript
 n1.generateBlocksS(1);
 n2.generateBlocksS(110);
 ```
 
 Now `n1` has 50 BTC and n2 has `500` available. Let's send some to `n3`.
 
-```Javascript
+```javascript
 console.log(`n3.balance (before) = ${n3.getBalanceS()}`);
 n2.sendToNodeS(n3, 100);
 n2.generateBlocksS(6);
@@ -89,7 +89,7 @@ Let's emulate a double spend attack. We do this in a few steps:
 5. We reconnect the two partitions and generate on `n3`. This should trigger a reorg, and the UTXO should be spent to `n4`. `n1` should no longer believe it has the money it was sent earlier by `n2`.
 
 Steps 1 - 2:
-```Javascript
+```javascript
 const [ n12, n34 ] = net.partitionS(nodes, 2);
 
 console.log('partitioned network:');
@@ -106,7 +106,7 @@ console.log(`utxo:    addr=${utxo.address}, amount=${utxo.amount}`);
 We now have all we need to double-spend. First we do it from `n2` to `n1`.
 
 Step 3:
-```Javascript
+```javascript
 const n1PreBalance = n1.getBalanceS();
 const txid = n2.spendUTXOS(utxo, n1addr, 1);
 console.log(`n2->n1 txid = ${txid}`);
@@ -119,7 +119,7 @@ console.log(`n1 balance +${n1PostBalance - n1PreBalance}: pre=${n1PreBalance}, p
 
 We can now spend the same UTXO from `n3` in the same fashion. Before we do, let's see what the block chains look like in the current partitioned state:
 
-```Javascript
+```javascript
 net.syncS(n12);
 console.log('block chain state:');
 console.log('  n1+n2           n3+n4');
@@ -147,7 +147,7 @@ As you can see, nodes `n3+n4` have not see the last 6 blocks, which is because t
 Now spend the same UTXO from n3.
 
 Step 4:
-```Javascript
+```javascript
 const n4PreBalance = n4.getBalanceS();
 const txid2 = n3.spendUTXOS(utxo, n4addr, 1);
 console.log(`n3->n4 txid = ${txid2}`);
@@ -160,7 +160,7 @@ console.log(`n4 balance +${n4PostBalance - n4PreBalance}: pre=${n4PreBalance}, p
 
 Looking at the block chain state...
 
-```Javascript
+```javascript
 console.log('block chain state:');
 console.log('  n1+n2           n3+n4');
 net.syncS(n34);
@@ -186,7 +186,7 @@ graph.printBlockChainsS(n12, n34);
 ... we see that a fork has occurred. This fork will survive for as long as the two partitions are separated. Once the network is merged, the fork will perform a reorg, and the longest chain will become the new active one, as seen by the nodes. Final step.
 
 Step 5:
-```Javascript
+```javascript
 net.mergeS(nodes);
 n3.generateBlocksS(1);
 net.syncS(nodes);
