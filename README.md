@@ -113,7 +113,7 @@ Two things of note above:
 
 ## Double Spend Theft Demo
 
-Let's emulate a double spend attack. There are several kinds of Double Spends, and we will cover two of them here. In the first case we will send money to one person and then send it to someone else. The first person will think they got the money, but then the money will instead go to the second person (ourselves, for example). We do this in a few steps:
+Let's emulate a double spend. There are several kinds of Double Spends, and we will cover two of them here. In the first case we will send money to one person and then send it to someone else. The first person will think they got the money, but then the money will instead go to the second person (ourselves, for example). We do this in a few steps:
 
 1. We split the network into two partitions (`n12` and `n34`).
 2. We share a UTXO between `n2` and `n3`, so that they can both spend it independently.
@@ -439,7 +439,7 @@ A sidenote here is that, for transactions that are no longer a part of the main 
 
 ## Double Spend Same Destination
 
-Arguably more common, but nonetheless potentially destructive if not handled properly, is the "Double Spend Same Destination" attack. This works just like the "Double Spend Theft" attack, except both transactions send to the same address. The transactions are *identical* in execution. Why would you wanna do this? There are several reasons. A malicious person may decide to pay an 2 BTC invoice by sending 1 BTC to the address, twice. The recipient invoice system might log the first transaction and note that 1 BTC has been paid, and then once it catches the second transaction, it notes that another 1 BTC = 2 BTC were paid, completing the purchase.
+Arguably more common, but nonetheless potentially destructive if not handled properly, is the "Double Spend Same Destination" case. This works just like "Double Spend Theft", except both transactions send to the same address. The transactions are *identical* in execution. Why would you wanna do this? There are several reasons. You may decide to resend a payment with a higher fee, after realizing the fee was too low. A malicious person may decide to pay an 2 BTC invoice by sending 1 BTC to the address, twice. The recipient invoice system might log the first transaction and note that 1 BTC has been paid, and then once it catches the second transaction, it notes that another 1 BTC = 2 BTC were paid, completing the purchase.
 
 Except that the second transaction was in fact replacing the first one. If the invoice system doesn't take note of these things, it may end up thinking it was paid more than it received in reality.
 
@@ -722,3 +722,4 @@ second payment according to n1: {
 
 Our invoice system might go "Ah, a new payment (with a new txid)! Excellent, let's add it to our list of payments" and think it's gotten 2 BTC, when in reality (as the first output shows), it has also misplaced 1 BTC.
 
+In the last example, there were wallet conflicts -- each of the two transactions were referring to each other, saying they were in conflict. This can be a helpful hint for software, but cannot be relied on, as it will not show up in the case of double spends to different destinations.
