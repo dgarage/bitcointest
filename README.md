@@ -439,7 +439,7 @@ A sidenote here is that, for transactions that are no longer a part of the main 
 
 ## Double Spend Same Destination
 
-The "Double Spend Same Destination" case works just like "Double Spend Theft", except both transactions send to the same address. The transactions are *identical* in execution. A common example of this is an RBF (Replace By Fee) transaction, an opt-in feature in the bitcoin network where a transaction can be replaced with another transaction with a higher fee, as long as the transaction is not in a block already.
+The "Double Spend Same Destination" case works just like "Double Spend Theft", except both transactions send to the same address. A common example of this is an RBF (Replace By Fee) transaction, an opt-in feature in the bitcoin network where a transaction can be replaced with another transaction with a higher fee, as long as the transaction is not in a block already.
 
 We will do this in the same fashion as before. 
 
