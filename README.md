@@ -439,18 +439,15 @@ A sidenote here is that, for transactions that are no longer a part of the main 
 
 ## Double Spend Same Destination
 
-Arguably more common, but nonetheless potentially destructive if not handled properly, is the "Double Spend Same Destination" case. This works just like "Double Spend Theft", except both transactions send to the same address. The transactions are *identical* in execution. Why would you wanna do this? There are several reasons. You may decide to resend a payment with a higher fee, after realizing the fee was too low. A malicious person may decide to pay an 2 BTC invoice by sending 1 BTC to the address, twice. The recipient invoice system might log the first transaction and note that 1 BTC has been paid, and then once it catches the second transaction, it notes that another 1 BTC = 2 BTC were paid, completing the purchase.
+The "Double Spend Same Destination" case works just like "Double Spend Theft", except both transactions send to the same address. The transactions are *identical* in execution. A common example of this is an RBF (Replace By Fee) transaction, an opt-in feature in the bitcoin network where a transaction can be replaced with another transaction with a higher fee, as long as the transaction is not in a block already.
 
-Except that the second transaction was in fact replacing the first one. If the invoice system doesn't take note of these things, it may end up thinking it was paid more than it received in reality.
-
-We do this in the same fashion as before. 
+We will do this in the same fashion as before. 
 
 1. Get a shared UTXO between two separate nodes. 
 2. Get an address (the `invoice` number). `n1` is the merchant we are paying.
 3. Send to the address from `n2`. Generate blocks. `n1` should now think it has half the amount.
 4. Send to the address from `n3`. Generate blocks.
 5. Merge network. Generate blocks on `n3`. `n1` may (but should not) think it received the second half.
-
 
 ```javascript
 net.partitionS(nodes, 2);
@@ -719,7 +716,5 @@ second payment according to n1: {
 }
 */
 ```
-
-Our invoice system might go "Ah, a new payment (with a new txid)! Excellent, let's add it to our list of payments" and think it's gotten 2 BTC, when in reality (as the first output shows), it has also misplaced 1 BTC.
 
 In the last example, there were wallet conflicts -- each of the two transactions were referring to each other, saying they were in conflict. This can be a helpful hint for software, but cannot be relied on, as it will not show up in the case of double spends to different destinations.
