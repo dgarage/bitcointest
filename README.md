@@ -4,6 +4,8 @@ Bitcoin test suite primarily used to test complex scenarios such as double spend
 
 The tests.js file contains several examples detailing what can be done.
 
+[![demo](doc/demo.gif)](#)
+
 ## Quick Guide
 
 Install the npm module `bitcointest`, and in a node project, do:

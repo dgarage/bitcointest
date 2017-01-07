@@ -456,7 +456,7 @@ Node.prototype = {
         }
         const trimmedRD = (rd) => {
             const r = {};
-            for (const txid of rd) {
+            for (const txid of Object.keys(rd)) {
                 r[txid] = rd[txid].toFixed(8);
             }
             return r;
