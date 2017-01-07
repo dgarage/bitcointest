@@ -1,6 +1,6 @@
 {
   "name": "bitcointest",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Bitcoin testing framework for node.js",
   "main": "index.js",
   "scripts": {
