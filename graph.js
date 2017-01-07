@@ -133,6 +133,8 @@ BitcoinGraph.prototype = {
     },
 };
 
-DeasyncObject(BitcoinGraph);
+DeasyncObject(BitcoinGraph, [
+  'printConnectionMatrix',
+]);
 
 module.exports = BitcoinGraph;

@@ -48,8 +48,8 @@ describe('BitcoinNet', () => {
 
 describe('bitcoind', function() {
   it('is running', function(done) {
-    this.timeout(20000);
-    net.waitForNodesS(nodes, 20000);
+    this.timeout(50000);
+    net.waitForNodesS(nodes, 50000);
     done();
   });
 });
@@ -312,6 +312,7 @@ describe('bitcointest', function() {
   });
   
   it('shuts down', function(done) {
+    this.timeout(10000);
     net.shutdownS();
     expect(node.running).to.be.false;
     expect(node2.running).to.be.false;

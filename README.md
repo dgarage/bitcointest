@@ -9,7 +9,7 @@ The tests.js file contains several examples detailing what can be done.
 Install the npm module `bitcointest`, and in a node project, do:
 
 ```javascript
-const { BitcoinNet, BitcoinGraph, Node } = require('bitcointest');
+const { BitcoinNet, BitcoinGraph } = require('bitcointest');
 net = new BitcoinNet('/path/to/bitcoin', '/tmp/bitcointest/', 22001, 22002);
 graph = new BitcoinGraph(net);
 
@@ -23,7 +23,7 @@ try {
 }
 ```
 
-You can now set up clusters of regtest nodes as you desire. We wrap everything in a try/catch because we want to make sure the nodes are taken down in the event of an exception. The 
+You can now set up clusters of regtest nodes as you desire. We wrap everything in a try/catch because we want to make sure the nodes are taken down in the event of an exception.
 
 Note that starting a node up can take a long time, and you should `waitForNodes` before using them (it takes over 10 seconds in certain cases).
 

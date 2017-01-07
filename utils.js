@@ -11,8 +11,9 @@ const Barrier = function() {
     this.counter = 0;
 };
 
-const DeasyncObject = (object) => {
+const DeasyncObject = (object, synchronousByNature = []) => {
     for (const m of Object.keys(object.prototype)) {
+      if (!synchronousByNature[m])
         object.prototype[`${m}S`] = deasync(object.prototype[m]);
     }
 };

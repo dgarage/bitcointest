@@ -104,7 +104,7 @@ Node.prototype = {
         let waitForBitcoind = true;
         let connFailurePrint = true;
         let syncPrint = true;
-        let blockIndexPrint = true;
+        const msgPrintDict = {};
         let error = null;
         const expiry = new Date().getTime() + timeout;
         async.whilst(
@@ -132,16 +132,16 @@ Node.prototype = {
                         if (err.code && err.code === -10) {
                             // getBlockTemplate returns error code -10 while "Bitcoin is downloading blocks..."
                             if (syncPrint) {
-                                log('    ○ bitcoind is syncing blocks ... waiting for completion');
+                                log('    ○ bitcoind is syncing blocks... waiting for completion');
                                 syncPrint = false;
                             }
                             return setTimeout(cb, 1000);
                         } 
                         if (err.code && err.code === -28) {
-                            // loading block index
-                            if (blockIndexPrint) {
-                                log('    ○ bitcoind is loading block index ... waiting for completion');
-                                blockIndexPrint = false;
+                            // loading something or other
+                            if (!msgPrintDict[err.message]) {
+                                log(`    ○ bitcoind is ${err.message.toLowerCase()} waiting for completion`);
+                                msgPrintDict[err.message] = true;
                             }
                             return setTimeout(cb, 300);
                         } 
@@ -635,6 +635,13 @@ Node.prototype = {
     },
 };
 
-DeasyncObject(Node);
+DeasyncObject(Node, [
+  'baseargs',
+  'bitcoindargs',
+  'stop',
+  'stringid',
+  'isConnected',
+  'getConnected',
+]);
 
 module.exports = Node;
