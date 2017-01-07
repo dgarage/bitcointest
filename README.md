@@ -263,7 +263,7 @@ block chain state:
 */
 ```
 
-... we see that a fork has occurred. This fork will survive for as long as the two partitions are separated. Once the network is merged, the net will perform a reorg, and the longest chain will become the new active one, as seen by the nodes. Before we do that, let's take a closer look at the two conflicting transactions.
+... we see that a fork has occurred. This fork will survive for as long as the two partitions are separated. Once the network is merged, the net will perform a reorg, and the longest chain will become the new active one (not 100% but mostly true), as seen by the nodes. Before we do that, let's take a closer look at the two conflicting transactions.
 
 ```javascript
 const tx1Details = n1.getTransactionS(txid, true); // true = detailed (getrawtx instead of gettx)
