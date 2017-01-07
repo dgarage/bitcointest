@@ -454,6 +454,13 @@ Node.prototype = {
             // we do not have to addChangeOutputToTransaction
             change = utxoAmount - amount - 0.0003;
         }
+        const trimmedRD = (rd) => {
+            const r = {};
+            for (const txid of rd) {
+                r[txid] = rd[txid].toFixed(8);
+            }
+            return r;
+        };
         async.waterfall([
             (c) => async.waterfall([
                 (cc) => {
@@ -467,7 +474,7 @@ Node.prototype = {
                     }
                     cc();
                 },
-                (cc) => this.createRawTransaction(recipientDict, utxoDict, cc),
+                (cc) => this.createRawTransaction(trimmedRD(recipientDict), utxoDict, cc),
             ], c),
             (rawtx, c) => utxoAmount > 0 ? c(null, rawtx) : this.addChangeOutputToTransaction(rawtx, c),
             (rawtx, c) => this.sendRawTransaction(rawtx, true, c),
@@ -498,6 +505,14 @@ Node.prototype = {
                 });
             }
         });
+    },
+    getTransaction(txid, detailed, cb) {
+        if (!cb) { cb = detailed; detailed = false; }
+        if (detailed) {
+            this.client.getRawTransaction(txid, true, (err, info) => cb(err, info.result));
+        } else {
+            this.client.getTransaction(txid, (err, info) => cb(err, info.result));
+        }
     },
     /**
      * Create a raw transaction sending bitcoins according to the recipient dict,
