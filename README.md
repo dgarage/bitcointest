@@ -437,7 +437,7 @@ A sidenote here is that, for transactions that are no longer a part of the main 
 
 ## Double Spend Same Destination
 
-Arguably more common, but nonetheless potentially destructive if not handled properly, is the "Double Spend Same Destination" attack. This works just like the "Double Spend Theft" attack, except both transactions send to the same addres. The transactions are *identical* in execution. Why would you wanna do this? There are several reasons. A malicious person may decide to pay an 2 BTC invoice by sending 1 BTC to the address, twice. The recipient invoice system might log the first transaction and note that 1 BTC has been paid, and then once it catches the second transaction, it notes that another 1 BTC = 2 BTC were paid, completing the purchase.
+Arguably more common, but nonetheless potentially destructive if not handled properly, is the "Double Spend Same Destination" attack. This works just like the "Double Spend Theft" attack, except both transactions send to the same address. The transactions are *identical* in execution. Why would you wanna do this? There are several reasons. A malicious person may decide to pay an 2 BTC invoice by sending 1 BTC to the address, twice. The recipient invoice system might log the first transaction and note that 1 BTC has been paid, and then once it catches the second transaction, it notes that another 1 BTC = 2 BTC were paid, completing the purchase.
 
 Except that the second transaction was in fact replacing the first one. If the invoice system doesn't take note of these things, it may end up thinking it was paid more than it received in reality.
 
