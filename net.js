@@ -210,6 +210,7 @@ BitcoinNet.prototype = {
     },
 };
 
-DeasyncObject(BitcoinNet);
+DeasyncObject(BitcoinNet, [
+]);
 
 module.exports = BitcoinNet;

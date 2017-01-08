@@ -1,13 +1,19 @@
 const { Parser, Serializer, SZ_HEX8, SZ_HEX16, SZ_HEX32, SZ_HEX64, SZ_HEX256 } = require('./parser');
 
-const Transaction = function(hex) {
-    this.hex = hex;
-    this.decode();
+const Transaction = function(hex, isParser = false) {
+    if (isParser) {
+        hex.pushStorageContext();
+        this.decode(hex);
+        this.hex = hex.popStorageContext();
+    } else {
+        this.hex = hex;
+        this.decode(new Parser(hex));
+    }
 };
 
 Transaction.prototype = {
-    decode() {
-        let p = new Parser(this.hex);
+    decode(p = null) {
+        if (!p) p = new Parser(this.hex);
         this.version = p.nextInt(SZ_HEX32);
         const vins = p.nextVarInt();
         const vin = this.vin = [];
@@ -34,8 +40,8 @@ Transaction.prototype = {
         }
         this.lockTime = p.nextInt(SZ_HEX32);
     },
-    encode() {
-        let s = new Serializer();
+    encode(s = null) {
+        if (!s) s = new Serializer();
         s.writeInt(SZ_HEX32, this.version);
         s.writeVarInt(this.vin.length);
         for (const v of this.vin) {

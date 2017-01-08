@@ -7,6 +7,7 @@ const { execFile } = require('child_process');
 const Transaction = require('./transaction');
 const ON_DEATH = require('death');
 const { DeasyncObject } = require('./utils');
+const { Block, BlockHeader } = require('./block');
 
 let verbose = process.env.V === '1';
 const log = (...args) => verbose ? console.log(...args) : null;
@@ -319,6 +320,20 @@ Node.prototype = {
     generateBlocks(count, cb) {
         assert(typeof(cb) === 'function');
         this.client.generate(count, (err, info) => cb(err, err ? null : info.result));
+    },
+    getBlock(blockhash, cb) {
+        assert(typeof(cb) === 'function');
+        const b = new Block();
+        b.fetchFromNode(this, blockhash, (err) => {
+            cb(err, b);
+        });
+    },
+    getBlockHeader(blockhash, cb) {
+        assert(typeof(cb) === 'function');
+        const h = new BlockHeader();
+        h.fetchFromNode(this, blockhash, (err) => {
+            cb(err, h);
+        });
     },
     getNewAddress(cb) {
         assert(typeof(cb) === 'function');

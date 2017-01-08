@@ -16,7 +16,16 @@ const Parser = function(s) {
     this.s = s;
     this.i = 0;
     this.l = s.length;
+    this.storageContexts = [];
 };
+
+Parser.swapIntEndian = (sz, i) => {
+    let s = ('000000000000000' + i.toString(16));
+    s = s.substr(s.length - (2 * sz));
+    return Number.parseInt(hexSwapEndian(s), 16);
+};
+
+Parser.swapHex = (s) => hexSwapEndian(s);
 
 Parser.prototype = {
     next(count, hexSwap = false) {
@@ -31,6 +40,14 @@ Parser.prototype = {
         const b1 = this.nextInt(SZ_HEX8);
         if (b1 < 0xfd) return b1;
         return this.nextInt(6 + 4 * [0xfd, 0xfe, 0x00, 0xff].indexOf(b1));
+    },
+    pushStorageContext() {
+        this.storageContexts.push(this.i);
+    },
+    popStorageContext() {
+        const ss = this.s.substring(this.storageContexts[this.storageContexts.length-1], this.i);
+        this.storageContexts.pop();
+        return ss;
     },
 };
 

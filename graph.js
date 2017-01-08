@@ -83,7 +83,7 @@ BitcoinGraph.prototype = {
                                             unifiedKept = [];
                                         }
                                         unifiedPrinted = 0;
-                                        printLeftRight(a, b);
+                                        printLeftRight(''+a, ''+b);
                                     }
                                     ia = a === lastA ? 0 : ia + 1;
                                     ib = b === lastB ? 0 : ib + 1;
