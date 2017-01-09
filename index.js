@@ -3,6 +3,7 @@ const Transaction = require('./transaction');
 const Node = require('./node');
 const BitcoinNet = require('./net');
 const BitcoinGraph = require('./graph');
+const BitcoinUtils = require('./utils');
 
 module.exports = {
     Block,
@@ -11,4 +12,5 @@ module.exports = {
     Node,
     BitcoinNet,
     BitcoinGraph,
+    BitcoinUtils,
 };
