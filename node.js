@@ -229,7 +229,7 @@ Node.prototype = {
             this.getBalance((err, bal) => {
                 if (err) return cb(err);
                 if (bal !== oldBalance) return cb(null, bal);
-                if (expiry < new Date().getTime()) return cb('timeout waiting for balance change (old = ${oldBalance})');
+                if (expiry < new Date().getTime()) return cb(`timeout waiting for balance change (old = ${oldBalance})`);
                 setTimeout(blk, 100);
             });
         };
