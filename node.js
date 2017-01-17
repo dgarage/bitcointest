@@ -60,6 +60,7 @@ Node.prototype = {
         const result = this.baseargs();
         return result.concat([
             `-port=${this.port}`,
+            '-keypool=10',
             '-server=1',
             '-listen=1',
             '-blockprioritysize=50000',
@@ -96,7 +97,7 @@ Node.prototype = {
     /**
      * Wait for this node to finish starting up so it can take commands via
      * the RPC interface.
-     * The timeout is rather high (10 seconds) because nodes seem to take 
+     * The timeout is rather high (10 seconds) because nodes seem to take
      * up to 6 seconds to start up in some situations.
      * TODO: investigate the reason for long startup times
      */
@@ -129,7 +130,7 @@ Node.prototype = {
                                 connFailurePrint = false;
                             }
                             return setTimeout(cb, 200);
-                        } 
+                        }
                         if (err.code && err.code === -10) {
                             // getBlockTemplate returns error code -10 while "Bitcoin is downloading blocks..."
                             if (syncPrint) {
@@ -137,7 +138,7 @@ Node.prototype = {
                                 syncPrint = false;
                             }
                             return setTimeout(cb, 1000);
-                        } 
+                        }
                         if (err.code && err.code === -28) {
                             // loading something or other
                             if (!msgPrintDict[err.message]) {
@@ -145,11 +146,11 @@ Node.prototype = {
                                 msgPrintDict[err.message] = true;
                             }
                             return setTimeout(cb, 300);
-                        } 
+                        }
                         // FATAL: unknown other error
                         waitForBitcoind = false;
                         return cb(`unknown bitcoind error; make sure node is configured: client=${this.client}, port=${this.port}, rpcport=${this.rpcport}`);
-                    } 
+                    }
                     waitForBitcoind = false;
                     return cb();
                 });
@@ -257,7 +258,7 @@ Node.prototype = {
                (bidirectionalCheck && node.connections.indexOf(`${this.host}:${this.port}`) !== -1);
     },
     /**
-     * Determine if we are connected to the given set of nodes. 
+     * Determine if we are connected to the given set of nodes.
      * An array listing the connected nodes is returned.
      */
     getConnected(nodes) {
@@ -311,7 +312,7 @@ Node.prototype = {
             this.connections.removeOneByValue(noderef);
             this.client.disconnectNode(noderef, (err, info) => {
                 cb(err, err ? null : info.result);
-            });            
+            });
         });
     },
     getGenesisBlockHash(cb) {
@@ -351,7 +352,7 @@ Node.prototype = {
     },
     /**
      * Wait for a given transaction with ID txid to appear in the mem pool.
-     * The callback is called with (err, result), where result is 
+     * The callback is called with (err, result), where result is
      *      false       if the transaction could not be found,
      *      'mempool'   if the transaction was found in the mem pool
      */
@@ -426,7 +427,7 @@ Node.prototype = {
         ], (err, info) => cb(err, err ? null : info.result));
     },
     /**
-     * Find an UTXO which contains at least the given amount. 
+     * Find an UTXO which contains at least the given amount.
      * If no UTXO was found matching the requirement, null is returned.
      */
     findSpendableOutput(minimumAmount, cb) {
@@ -445,7 +446,7 @@ Node.prototype = {
      * A change output to a new address owned by this node is generated and
      * added to the transaction.
      * It is recommended but not required that the utxo parameter is an actual
-     * utxo entry in the form seen by `listunspent`. At minimum, it must then 
+     * utxo entry in the form seen by `listunspent`. At minimum, it must then
      * contain a txid and a vout, and if it has an amount value it means one
      * less round-trip to the bitcoin daemon, in determining the change output.
      */
@@ -499,7 +500,7 @@ Node.prototype = {
      * Hand the private key for the given address (presumably owned by us) to
      * the given node, so that it now owns that address as well.
      * If rescan is true, the node will scan the block chain for unspent outputs
-     * and add them to its list of unspents, as well as its balance. For a 
+     * and add them to its list of unspents, as well as its balance. For a
      * big block chain, this can take a long time (minutes).
      */
     shareAddressWithNode(node, addr, rescan, cb) {
@@ -554,7 +555,7 @@ Node.prototype = {
         })
     },
     /**
-     * Calculates the total input value and generates a change UTXO to the 
+     * Calculates the total input value and generates a change UTXO to the
      * node's own address (or optionally to a specific changeAddress).
      * A flat rate fee of 150 satoshis per byte (approxpimately) is deducted
      * from the final value.
