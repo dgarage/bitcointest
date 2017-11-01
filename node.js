@@ -8,6 +8,7 @@ const Transaction = require('./transaction');
 const ON_DEATH = require('death');
 const { DeasyncObject } = require('./utils');
 const { Block, BlockHeader } = require('./block');
+const fs = require('fs');
 
 let verbose = process.env.V === '1';
 const log = (...args) => verbose ? console.log(...args) : null;
@@ -73,12 +74,21 @@ Node.prototype = {
             mkdirp(this.cfgpath, (err) => {
                 if (err) return cb ? cb(err) : null;
                 runningNodes.push(this);
-                this.bitcoindproc = execFile(`${this.path}/bitcoind`, this.bitcoindargs(), (err, sout, serr) => {
-                    this.running = false;
-                    this.bitcoindproc = null;
-                    // console.log(`${this.port} bitcoind instance finished with out:\n${sout}\nerr:\n${serr}`);
+                const fin = (bin) => {
+                    this.bitcoindproc = execFile(bin, this.bitcoindargs(), (err, sout, serr) => {
+                        this.running = false;
+                        this.bitcoindproc = null;
+                        // console.log(`${this.port} bitcoind instance finished with out:\n${sout}\nerr:\n${serr}`);
+                    });
+                    if (cb) cb(null);
+                }
+                fs.access(`${this.path}/bitcoind`, fs.constants.X_OK, (err) => {
+                    if (!err) return fin(`${this.path}/bitcoind`);
+                    fs.access(`${this.path}/Bitcoin-Qt`, fs.constants.X_OK, (err) => {
+                        if (err) throw err;
+                        fin(`${this.path}/Bitcoin-Qt`);
+                    });
                 });
-                if (cb) cb(null);
             });
         });
     },

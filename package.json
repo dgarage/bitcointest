@@ -27,13 +27,13 @@
   },
   "homepage": "https://github.com/dgarage/bitcointest#readme",
   "dependencies": {
-    "async": "^2.1.4",
+    "async": "^2.5.0",
     "bcrpc": "^0.0.5",
-    "deasync": "^0.1.9",
-    "death": "^1.0.0",
+    "deasync": "^0.1.10",
+    "death": "^1.1.0",
     "mkdirp": "^0.5.1",
     "remove": "^0.1.5",
-    "which": "^1.2.12"
+    "which": "^1.3.0"
   },
   "devDependencies": {
     "chai": "^3.5.0",

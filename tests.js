@@ -16,19 +16,24 @@ let node2;  // alias for nodes[1] == grp1[1]
 let grp1;   // node 0, 1 [net node 2, 3]
 let grp2;   // node 2, 3 [net node 0, 1]
 
-describe('bitcoind', () => {
+describe('bitcoin binary', () => {
   it('can be found', (done) => {
     const which = require('which');
     which('bitcoind', (whichErr, whichPath) => {
-      const bitcoinPath =
-        process.env.BITCOIN_PATH ||
-        (!whichErr && whichPath
-          ? whichPath.substr(0, whichPath.length - 8)
-          : '../bitcoin/src/');
-       net = new BitcoinNet(bitcoinPath, '/tmp/bitcointest/', 22001, 22002);
-       graph = new BitcoinGraph(net);
-       expect(net).to.not.be.null;
-       done();
+      which('Bitcoin-Qt', (whichErrQT, whichPathQT) => {
+          const bitcoinPath =
+            process.env.BITCOIN_PATH ||
+            (!whichErr && whichPath
+              ? whichPath.substr(0, whichPath.length - 8)
+              : (!whichErrQT && whichPathQT
+                 ? whichPathQT.substr(0, whichPathQT.length - 10)
+                 : '../bitcoin/src/'));
+           net = new BitcoinNet(bitcoinPath, '/tmp/bitcointest/', 22001, 22002);
+           graph = new BitcoinGraph(net);
+           // TODO: below checks absolutely nothing
+           expect(net).to.not.be.null;
+           done();
+      });
     });
   });
 });
@@ -46,7 +51,7 @@ describe('BitcoinNet', () => {
   });
 });
 
-describe('bitcoind', function() {
+describe('bitcoin', function() {
   it('is running', function(done) {
     this.timeout(50000);
     net.waitForNodesS(nodes, 50000);
