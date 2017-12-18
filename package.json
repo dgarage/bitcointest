@@ -1,6 +1,6 @@
 {
   "name": "bitcointest",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Bitcoin testing framework for node.js",
   "main": "index.js",
   "scripts": {
@@ -28,7 +28,7 @@
   "homepage": "https://github.com/dgarage/bitcointest#readme",
   "dependencies": {
     "async": "^2.5.0",
-    "bcrpc": "^0.0.5",
+    "bcrpc": "^0.0.6",
     "deasync": "^0.1.10",
     "death": "^1.1.0",
     "mkdirp": "^0.5.1",
