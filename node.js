@@ -64,7 +64,6 @@ Node.prototype = {
             '-keypool=10',
             '-server=1',
             '-listen=1',
-            '-blockprioritysize=50000',
         ]);
     },
     start(cb) {
@@ -330,7 +329,11 @@ Node.prototype = {
     },
     generateBlocks(count, cb) {
         assert(typeof(cb) === 'function');
-        this.client.generate(count, (err, info) => cb(err, err ? null : info.result));
+        this.client.getNewAddress((err, info) => {
+            if (err) return cb(err);
+            const addr = info.result;
+            this.client.generateToAddress(count, addr, (err, info) => cb(err, err ? null : info.result));
+        });
     },
     getBlock(blockhash, cb) {
         assert(typeof(cb) === 'function');
@@ -400,7 +403,7 @@ Node.prototype = {
     },
     getScriptPubKey(addr, cb) {
         if (Array.isArray(addr)) return this.apply(addr, 'getScriptPubKey', cb);
-        this.client.validateAddress(addr, (err, info) => {
+        this.client.getAddressInfo(addr, (err, info) => {
             if (err) return cb(err);
             const spk1 = info.result.scriptPubKey;
             if (!spk1) return cb(`unable to get scriptPubKey for address ${addr}`);
@@ -408,11 +411,18 @@ Node.prototype = {
         });
     },
     validateScriptPubKey(spk, cb) {
-        if (spk.length < 50) return cb('scriptpubkey too short');
-        if (spk.length > 50) return cb('scriptpubkey too long');
-        if (spk.substr(0, 2) !== '76') return cb('OP_DUP not found');
-        if (spk.substr(2, 2) !== 'a9') return cb('OP_HASH160 not found');
-        if (spk.substr(46, 4) !== '88ac') return cb('OP_EQUALVERIFY OP_CHECKSIG not found');
+        if (spk.length == 50) {
+            // P2PKH
+            if (spk.substr(0, 2) !== '76') return cb('OP_DUP not found');
+            if (spk.substr(2, 2) !== 'a9') return cb('OP_HASH160 not found');
+            if (spk.substr(46, 4) !== '88ac') return cb('OP_EQUALVERIFY OP_CHECKSIG not found');
+        } else if (spk.length == 46) {
+            // P2WPKH
+            if (spk.substr(0, 2) !== 'a9') return cb('OP_HASH160 not found');
+            if (spk.substr(44, 2) !== '87') return cb('OP_EQUAL not found');
+        } else {
+            return cb(`unknown scriptPubKey (length=${spk.length})`);
+        }
         cb(null);
     },
     /**
@@ -423,7 +433,7 @@ Node.prototype = {
         async.waterfall([
             (c) => {
                 if (signBeforeSend) {
-                    this.client.signRawTransaction(transaction, c);
+                    this.client.signRawTransactionWithWallet(transaction, c);
                 } else {
                     c(null, { result: transaction });
                 }
@@ -515,7 +525,7 @@ Node.prototype = {
      */
     shareAddressWithNode(node, addr, rescan, cb) {
         if (!cb) { cb = rescan; rescan = false; }
-        this.client.validateAddress(addr, (err, info) => {
+        this.client.getAddressInfo(addr, (err, info) => {
             if (err) return cb(err);
             if (info.result.ismine) {
                 // we give the other node our private key
