@@ -31,9 +31,9 @@ BitcoinGraph.prototype = {
         for (const a of sorted) {
             s = lpad(map[a.port], 4);
             for (const b of sorted) {
-                let z = '--';
-                if (a.port !== b.port) {
-                    z = (a.isConnected(b) ? 'o' : 'x') + (b.isConnected(a) ? 'o' : 'x');
+                let z = '-';
+                if (a.port !== b.port && (a.isConnected(b) || b.isConnected(a))) {
+                    z = '⤴';
                 }
                 s += lpad(z, 4);
             }
