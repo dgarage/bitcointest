@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/dgarage/bitcointest#readme",
   "dependencies": {
-    "async": "^2.6.1",
+    "async": "^3.2.2",
     "bcrpc": "^0.1.1",
     "deasync": "^0.1.14",
     "death": "^1.1.0",
